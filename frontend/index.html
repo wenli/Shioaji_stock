@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shioaji Stock Wish List Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Lightweight Charts 4.2.3 CDN -->
+    <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --card-bg: rgba(22, 26, 37, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --neon-blue: #00f2fe;
+            --neon-purple: #4facfe;
+            --neon-red: #ff3366;
+            --neon-green: #00e676;
+            --hover-blue: rgba(0, 242, 254, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            background: radial-gradient(circle at top right, #1b2030 0%, #08090c 70%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2.5rem 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Header design */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .header-title-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-glow {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.45);
+            font-size: 1.5rem;
+            color: #fff;
+        }
+
+        .header-title-section h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-title-section p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .api-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+        }
+
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-secondary);
+            box-shadow: 0 0 8px var(--text-secondary);
+        }
+
+        .badge-dot.online {
+            background-color: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .badge-dot.offline {
+            background-color: var(--neon-red);
+            box-shadow: 0 0 10px var(--neon-red);
+        }
+
+        /* Top Action Bar */
+        .action-bar {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .action-bar {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .search-add-box {
+            display: flex;
+            gap: 0.75rem;
+            padding: 1.5rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .search-add-box input {
+            flex-grow: 1;
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-add-box input:focus {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 242, 254, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .sync-box {
+            padding: 1.5rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Wish List Grid Card */
+        .wishlist-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+            padding: 1.5rem;
+            overflow: hidden;
+        }
+
+        .card-header {
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        /* Custom Scrollbar for tables */
+        .table-responsive {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+
+        th {
+            padding: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 2px solid var(--border-color);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        td {
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.02);
+            cursor: pointer;
+        }
+
+        .stock-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .stock-code {
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .stock-name {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .price-badge {
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+
+        .change-rate {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .change-rate.up {
+            color: var(--neon-red);
+        }
+
+        .change-rate.down {
+            color: var(--neon-green);
+        }
+
+        .change-rate.flat {
+            color: var(--text-secondary);
+        }
+
+        .sync-badge {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-family: monospace;
+            background: rgba(0,0,0,0.25);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.03);
+            display: inline-block;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .btn-icon:hover {
+            color: var(--neon-red);
+            border-color: rgba(255, 51, 102, 0.3);
+            background: rgba(255, 51, 102, 0.15);
+            transform: scale(1.05);
+        }
+
+        /* Modal styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-card {
+            background: #111422;
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            width: 90%;
+            max-width: 900px;
+            height: 80vh;
+            max-height: 600px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 242, 254, 0.1);
+            transform: translateY(30px);
+            transition: transform 0.3s ease;
+            overflow: hidden;
+        }
+
+        .modal-overlay.active .modal-card {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .modal-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+        }
+
+        .modal-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .timeframe-selector {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.25rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .timeframe-btn {
+            background: none;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .timeframe-btn.active {
+            background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 242, 254, 0.3);
+        }
+
+        .modal-body {
+            flex-grow: 1;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            position: relative;
+        }
+
+        #chart-container {
+            width: 100%;
+            flex-grow: 1;
+            min-height: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            background-color: #131722;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transform: translateY(150%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 200;
+        }
+
+        .toast.active {
+            transform: translateY(0);
+        }
+
+        .toast-icon {
+            font-size: 1.25rem;
+        }
+
+        .toast-success .toast-icon { color: var(--neon-green); }
+        .toast-error .toast-icon { color: var(--neon-red); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-title-section">
+                <div class="logo-glow">
+                    <i class="fa-solid fa-chart-line-up"></i>
+                </div>
+                <div>
+                    <h1>Stock Wish List Updater</h1>
+                    <p>台灣股票願望清單多週期自動下載更新器</p>
+                </div>
+            </div>
+            <div class="api-badge">
+                <div id="status-dot" class="badge-dot"></div>
+                <span id="status-text">Checking API...</span>
+            </div>
+        </header>
+
+        <!-- Action Bar -->
+        <div class="action-bar">
+            <!-- Add Stock Form -->
+            <div class="search-add-box">
+                <input type="text" id="stock-input" placeholder="請輸入股票代碼 (例如：2330)" maxlength="10">
+                <button id="add-btn" class="btn btn-primary">
+                    <i class="fa-solid fa-plus"></i> 新增股票
+                </button>
+            </div>
+            <!-- One Key Sync -->
+            <div class="sync-box">
+                <button id="sync-btn" class="btn btn-secondary" style="width: 100%;">
+                    <i class="fa-solid fa-rotate"></i> 一鍵更新所有股票
+                </button>
+            </div>
+        </div>
+
+        <!-- Wish List Table Card -->
+        <div class="wishlist-card">
+            <div class="card-header">
+                <h2>追蹤名單</h2>
+                <span id="total-count" class="sync-badge">共 0 檔股票</span>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>股票</th>
+                            <th>最新價格</th>
+                            <th>當日漲跌</th>
+                            <th>1分K 更新時間</th>
+                            <th>5分K 更新時間</th>
+                            <th>日K 更新時間</th>
+                            <th>下載狀態</th>
+                            <th style="width: 60px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="wishlist-body">
+                        <tr>
+                            <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 3rem 0;">
+                                <div class="spinner" style="margin-bottom: 1rem;"></div>
+                                <div>加載中，請稍候...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for chart -->
+    <div id="chart-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-section">
+                    <span id="modal-stock-title" class="modal-title">股票名稱 (代號)</span>
+                    <span id="modal-stock-subtitle" class="modal-subtitle">歷史 K 線數據</span>
+                </div>
+                <div class="timeframe-selector">
+                    <button class="timeframe-btn active" data-tf="1k">1m</button>
+                    <button class="timeframe-btn" data-tf="5k">5m</button>
+                    <button class="timeframe-btn" data-tf="15k">15m</button>
+                    <button class="timeframe-btn" data-tf="30k">30m</button>
+                    <button class="timeframe-btn" data-tf="60k">60m</button>
+                    <button class="timeframe-btn" data-tf="1d">1d</button>
+                </div>
+                <button id="close-modal-btn" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="chart-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast">
+        <div id="toast-icon-container" class="toast-icon"></div>
+        <div id="toast-message">提示訊息</div>
+    </div>
+
+    <!-- Script Section -->
+    <script>
+        let selectedStockCode = null;
+        let selectedTimeframe = "1k";
+        let chart = null;
+        let candleSeries = null;
+        let volumeSeries = null;
+        let pollingTimer = null;
+
+        // Fetch Status & Wishlist on mount
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchStatus();
+            fetchWishlist();
+
+            // Event Listeners
+            document.getElementById('add-btn').addEventListener('click', addStock);
+            document.getElementById('stock-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addStock();
+            });
+            document.getElementById('sync-btn').addEventListener('click', syncAllStocks);
+            document.getElementById('close-modal-btn').addEventListener('click', hideModal);
+
+            // Modal overlay click to close
+            document.getElementById('chart-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'chart-modal') hideModal();
+            });
+
+            // Timeframe buttons selector
+            const tfBtns = document.querySelectorAll('.timeframe-btn');
+            tfBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tfBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectedTimeframe = btn.getAttribute('data-tf');
+                    if (selectedStockCode) {
+                        loadChartData(selectedStockCode, selectedTimeframe);
+                    }
+                });
+            });
+        });
+
+        // Toast Helper
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const iconContainer = document.getElementById('toast-icon-container');
+            const messageContainer = document.getElementById('toast-message');
+
+            toast.className = `toast toast-${type} active`;
+            messageContainer.textContent = message;
+            
+            if (type === 'success') {
+                iconContainer.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+            } else {
+                iconContainer.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i>';
+            }
+
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3000);
+        }
+
+        // Fetch API connection status
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                const dot = document.getElementById('status-dot');
+                const text = document.getElementById('status-text');
+
+                if (data.status === 'Online') {
+                    dot.className = 'badge-dot online';
+                    text.textContent = 'Shioaji: Connected';
+                } else {
+                    dot.className = 'badge-dot offline';
+                    text.textContent = 'Shioaji: Offline/Unlogged';
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('status-dot').className = 'badge-dot offline';
+                document.getElementById('status-text').textContent = 'Server Disconnected';
+            }
+        }
+
+        // Check and toggle smart polling based on stock sync statuses
+        function checkAndPoll(stocks) {
+            const hasActiveSync = stocks.some(s => s.sync_status === 'pending' || s.sync_status === 'syncing');
+            
+            if (hasActiveSync) {
+                if (!pollingTimer) {
+                    console.log("Starting smart polling...");
+                    pollingTimer = setInterval(async () => {
+                        try {
+                            const res = await fetch('/api/wishlist');
+                            const wishlist = await res.json();
+                            renderWishlist(wishlist);
+                            checkAndPoll(wishlist);
+                        } catch (err) {
+                            console.error("Polling error:", err);
+                        }
+                    }, 2000);
+                }
+            } else {
+                if (pollingTimer) {
+                    console.log("Stopping smart polling...");
+                    clearInterval(pollingTimer);
+                    pollingTimer = null;
+                }
+            }
+        }
+
+        // Fetch Wish List
+        async function fetchWishlist() {
+            try {
+                const res = await fetch('/api/wishlist');
+                const wishlist = await res.json();
+                renderWishlist(wishlist);
+                checkAndPoll(wishlist);
+            } catch (err) {
+                console.error(err);
+                showToast("獲取願望清單失敗", "error");
+            }
+        }
+
+        // Render table
+        function renderWishlist(stocks) {
+            const body = document.getElementById('wishlist-body');
+            const countBadge = document.getElementById('total-count');
+            countBadge.textContent = `共 ${stocks.length} 檔股票`;
+
+            if (stocks.length === 0) {
+                body.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 3rem 0;">
+                            目前沒有追蹤任何股票。請在上方輸入代碼新增。
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            body.innerHTML = '';
+            stocks.forEach(stock => {
+                const tr = document.createElement('tr');
+                
+                // Color classification for Price Change (up, down, flat)
+                let changeClass = 'flat';
+                let sign = '';
+                if (stock.change_price > 0) {
+                    changeClass = 'up';
+                    sign = '+';
+                } else if (stock.change_price < 0) {
+                    changeClass = 'down';
+                }
+
+                const changeText = stock.change_price !== 0 
+                    ? `${sign}${stock.change_price.toFixed(2)} (${sign}${stock.change_rate.toFixed(2)}%)`
+                    : '0.00 (0.00%)';
+
+                // Truncate timestamp for cleaner display
+                const cleanTime = (t) => t === 'No Data' ? t : t.substring(5, 16);
+
+                // Render sync status badge
+                let statusHTML = '';
+                const status = stock.sync_status || 'idle';
+                if (status === 'pending') {
+                    statusHTML = `<span class="sync-badge" style="color: #f59e0b; border-color: rgba(245, 158, 11, 0.3);"><i class="fa-solid fa-clock fa-spin-hover" style="margin-right: 4px;"></i>排隊中...</span>`;
+                } else if (status === 'syncing') {
+                    statusHTML = `<span class="sync-badge" style="color: #00f2fe; border-color: rgba(0, 242, 254, 0.3);"><i class="fa-solid fa-spinner fa-spin" style="margin-right: 4px;"></i>下載中...</span>`;
+                } else if (status === 'success') {
+                    statusHTML = `<span class="sync-badge" style="color: #00e676; border-color: rgba(0, 230, 118, 0.3);"><i class="fa-solid fa-circle-check" style="margin-right: 4px;"></i>已完成</span>`;
+                } else if (status === 'failed') {
+                    const errorTip = stock.sync_error ? stock.sync_error.replace(/"/g, '&quot;') : '未知錯誤';
+                    statusHTML = `<span class="sync-badge" style="color: #ff3366; border-color: rgba(255, 51, 102, 0.3); cursor: help;" title="${errorTip}"><i class="fa-solid fa-circle-exclamation" style="margin-right: 4px;"></i>失敗</span>`;
+                } else {
+                    statusHTML = `<span class="sync-badge" style="color: var(--text-secondary);">-</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td>
+                        <div class="stock-info">
+                            <span class="stock-code">${stock.code}</span>
+                            <span class="stock-name">${stock.name}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="price-badge ${changeClass}">${stock.live_price !== 'N/A' ? parseFloat(stock.live_price).toFixed(2) : 'N/A'}</span>
+                    </td>
+                    <td>
+                        <span class="change-rate ${changeClass}">${changeText}</span>
+                    </td>
+                    <td><span class="sync-badge">${cleanTime(stock.last_1k)}</span></td>
+                    <td><span class="sync-badge">${cleanTime(stock.last_5k)}</span></td>
+                    <td><span class="sync-badge">${cleanTime(stock.last_1d)}</span></td>
+                    <td>${statusHTML}</td>
+                    <td>
+                        <button class="btn-icon delete-btn" data-code="${stock.code}" title="移出清單">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+
+                // Row click triggers Chart Modal (except clicking on delete button)
+                tr.addEventListener('click', (e) => {
+                    if (e.target.closest('.delete-btn')) return;
+                    showModal(stock.code, stock.name);
+                });
+
+                // Attach delete event
+                tr.querySelector('.delete-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteStock(stock.code);
+                });
+
+                body.appendChild(tr);
+            });
+        }
+
+        // Add Stock
+        async function addStock() {
+            const input = document.getElementById('stock-input');
+            const code = input.value.trim();
+            if (!code) return;
+
+            const btn = document.getElementById('add-btn');
+            const origHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div>';
+
+            try {
+                const res = await fetch('/api/wishlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code })
+                });
+                
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message, 'success');
+                    input.value = '';
+                    fetchWishlist();
+                } else {
+                    showToast(data.detail || "新增失敗", 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("與伺服器通訊錯誤", 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHTML;
+            }
+        }
+
+        // Delete Stock
+        async function deleteStock(code) {
+            if (!confirm(`確定要將股票 ${code} 移出願望清單，並刪除該股的 K 線歷史資料嗎？`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/wishlist/${code}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message, 'success');
+                    fetchWishlist();
+                } else {
+                    showToast(data.detail || "刪除失敗", 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("與伺服器通訊錯誤", 'error');
+            }
+        }
+
+        // Sync All Stocks
+        async function syncAllStocks() {
+            const btn = document.getElementById('sync-btn');
+            const origHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> 正在觸發背景同步...';
+
+            try {
+                const res = await fetch('/api/sync', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message, 'success');
+                    fetchWishlist();
+                } else {
+                    showToast(data.detail || "同步失敗", 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("同步錯誤", 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHTML;
+            }
+        }
+
+        // Show Modal & Load Chart
+        function showModal(code, name) {
+            selectedStockCode = code;
+            document.getElementById('modal-stock-title').textContent = `${name} (${code})`;
+            
+            // Set default timeframe active
+            const tfBtns = document.querySelectorAll('.timeframe-btn');
+            tfBtns.forEach(b => b.classList.remove('active'));
+            document.querySelector('[data-tf="1k"]').classList.add('active');
+            selectedTimeframe = "1k";
+
+            document.getElementById('chart-modal').classList.add('active');
+            
+            // Initialize Lightweight Chart
+            setTimeout(() => {
+                initChart();
+                loadChartData(code, selectedTimeframe);
+            }, 50);
+        }
+
+        // Hide Modal
+        function hideModal() {
+            document.getElementById('chart-modal').classList.remove('active');
+            if (chart) {
+                chart.remove();
+                chart = null;
+            }
+            selectedStockCode = null;
+        }
+
+        // Initialize Lightweight Charts
+        function initChart() {
+            try {
+                const container = document.getElementById('chart-container');
+                container.innerHTML = ''; // Clear container
+
+                chart = LightweightCharts.createChart(container, {
+                    width: container.clientWidth || 800,
+                    height: 400,
+                    layout: {
+                        background: { type: 'solid', color: '#131722' },
+                        textColor: '#d1d4dc',
+                    },
+                    grid: {
+                        vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
+                        horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
+                    },
+                    crosshair: {
+                        mode: LightweightCharts.CrosshairMode.Normal,
+                    },
+                    rightPriceScale: {
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                    },
+                    timeScale: {
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        timeVisible: true,
+                    },
+                });
+
+                candleSeries = chart.addCandlestickSeries({
+                    upColor: '#ff3366',
+                    downColor: '#00e676',
+                    borderDownColor: '#00e676',
+                    borderUpColor: '#ff3366',
+                    wickDownColor: '#00e676',
+                    wickUpColor: '#ff3366',
+                });
+
+                // Handle Resize
+                const resizeObserver = new ResizeObserver(entries => {
+                    if (chart && entries.length > 0) {
+                        const { width, height } = entries[0].contentRect;
+                        chart.resize(width, height);
+                    }
+                });
+                resizeObserver.observe(container);
+            } catch (err) {
+                console.error("❌ initChart crashed: ", err);
+            }
+        }
+
+        // Load K-line data into Chart
+        async function loadChartData(code, timeframe) {
+            if (!chart) return;
+            
+            try {
+                const res = await fetch(`/api/kbars/${code}?timeframe=${timeframe}&limit=1000`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    const formattedData = data.kbars.map(bar => {
+                        // lightweight-charts needs UNIX timestamps (seconds) or string 'YYYY-MM-DD'
+                        let timeVal;
+                        if (timeframe === '1d') {
+                            timeVal = bar.time.split(' ')[0]; // Extract YYYY-MM-DD
+                        } else {
+                            // Convert standard timestamp to Unix timestamp (seconds)
+                            timeVal = Math.floor(new Date(bar.time).getTime() / 1000);
+                        }
+                        
+                        return {
+                            time: timeVal,
+                            open: bar.open,
+                            high: bar.high,
+                            low: bar.low,
+                            close: bar.close
+                        };
+                    });
+
+                    candleSeries.setData(formattedData);
+                    chart.timeScale().fitContent();
+                    
+                    document.getElementById('modal-stock-subtitle').textContent = 
+                        `K 線週期: ${timeframe.toUpperCase()} (共 ${formattedData.length} 根 K棒)`;
+                } else {
+                    showToast("載入圖表 K 線失敗", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("與伺服器通訊錯誤", "error");
+            }
+        }
+    </script>
+</body>
+</html>
