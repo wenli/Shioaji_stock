@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票多週期量價圖</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Lightweight Charts 4.2.3 CDN -->
+    <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --card-bg: rgba(22, 26, 37, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --neon-blue: #00f2fe;
+            --neon-purple: #4facfe;
+            --neon-red: #ff3366;
+            --neon-green: #00e676;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            background: radial-gradient(circle at top right, #1b2030 0%, #08090c 70%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1600px;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        /* Header Style */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 2rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+            flex-shrink: 0;
+        }
+
+        .header-title-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-glow {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+            font-size: 1.25rem;
+            color: #fff;
+        }
+
+        .header-title-section h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-title-section p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 12px rgba(0, 242, 254, 0.15);
+            transform: translateY(-1px);
+        }
+
+        /* 2x2 CSS Grid */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 1rem;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            flex-grow: 1;
+        }
+
+        .chart-card-mini {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+            min-height: 0;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-mini-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            padding-bottom: 0.4rem;
+            z-index: 10;
+        }
+
+        .chart-mini-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 0.2px;
+            display: flex;
+            align-items: center;
+            color: var(--text-primary);
+        }
+
+        .price-lbl-info {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            letter-spacing: 0.2px;
+        }
+
+        .chart-canvas-container {
+            flex-grow: 1;
+            width: 100%;
+            min-height: 120px;
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: #131722;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transform: translateY(150%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 200;
+        }
+
+        .toast.active {
+            transform: translateY(0);
+        }
+
+        .toast-icon {
+            font-size: 1.25rem;
+        }
+
+        .toast-error .toast-icon { color: var(--neon-red); }
+
+        /* Mobile layout RWD */
+        @media (max-width: 768px) {
+            body {
+                padding: 0.75rem;
+            }
+            .container {
+                height: auto;
+                gap: 0.75rem;
+            }
+            .chart-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+                overflow-y: visible;
+            }
+            .chart-card-mini {
+                height: 320px;
+                flex-shrink: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-title-section">
+                <div class="logo-glow">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <div>
+                    <h1 id="stock-title">載入中...</h1>
+                    <p id="stock-subtitle">多週期量價共振 K 線圖</p>
+                </div>
+            </div>
+            <a href="/" class="back-btn">
+                <i class="fa-solid fa-house"></i> 回首頁
+            </a>
+        </header>
+
+        <!-- Charts Grid -->
+        <div id="chart-grid-container" class="chart-grid">
+            <!-- 5K Chart -->
+            <div class="chart-card-mini">
+                <div class="chart-mini-header">
+                    <span class="chart-mini-title"><i class="fa-solid fa-bolt" style="color: var(--neon-blue); margin-right: 6px;"></i>5M 趨勢</span>
+                    <span id="price-lbl-5k" class="price-lbl-info">--</span>
+                </div>
+                <div id="canvas-5k" class="chart-canvas-container"></div>
+            </div>
+            <!-- 15K Chart -->
+            <div class="chart-card-mini">
+                <div class="chart-mini-header">
+                    <span class="chart-mini-title"><i class="fa-solid fa-rabbit" style="color: var(--neon-purple); margin-right: 6px;"></i>15M 趨勢</span>
+                    <span id="price-lbl-15k" class="price-lbl-info">--</span>
+                </div>
+                <div id="canvas-15k" class="chart-canvas-container"></div>
+            </div>
+            <!-- 60K Chart -->
+            <div class="chart-card-mini">
+                <div class="chart-mini-header">
+                    <span class="chart-mini-title"><i class="fa-solid fa-hourglass" style="color: var(--neon-red); margin-right: 6px;"></i>60M 趨勢</span>
+                    <span id="price-lbl-60k" class="price-lbl-info">--</span>
+                </div>
+                <div id="canvas-60k" class="chart-canvas-container"></div>
+            </div>
+            <!-- 1D Chart -->
+            <div class="chart-card-mini">
+                <div class="chart-mini-header">
+                    <span class="chart-mini-title"><i class="fa-solid fa-calendar" style="color: var(--neon-green); margin-right: 6px;"></i>日K 趨勢</span>
+                    <span id="price-lbl-1d" class="price-lbl-info">--</span>
+                </div>
+                <div id="canvas-1d" class="chart-canvas-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast toast-error">
+        <div id="toast-icon-container" class="toast-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+        <div id="toast-message">提示訊息</div>
+    </div>
+
+    <script>
+        const charts = {};
+        const candleSeriesList = {};
+        const volumeSeriesList = {};
+        const chartKeys = ['5k', '15k', '60k', '1d'];
+
+        // [標準轉換] 將台北 Naive 時間字串，轉換為該時刻在台北 (UTC+8) 的標準 Unix 時間戳（秒）
+        function getCorrectedUnixTimestamp(timeStr) {
+            if (timeStr.length <= 10) {
+                const dt = new Date(timeStr + 'T00:00:00+08:00');
+                return Math.floor(dt.getTime() / 1000);
+            }
+            const dt = new Date(timeStr.replace(' ', 'T') + '+08:00');
+            return Math.floor(dt.getTime() / 1000);
+        }
+
+        // [時區格式化] 強行將 Unix 標準時間戳（秒）轉為台北標準時間顯示
+        function formatUnixToTaipeiString(unixSecs, formatType = 'datetime') {
+            const dt = new Date(unixSecs * 1000);
+            const formatter = new Intl.DateTimeFormat('zh-TW', {
+                timeZone: 'Asia/Taipei',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            
+            const parts = formatter.formatToParts(dt);
+            const partMap = {};
+            parts.forEach(p => partMap[p.type] = p.value);
+            
+            if (formatType === 'date') {
+                return `${partMap.year}-${partMap.month}-${partMap.day}`;
+            } else if (formatType === 'time') {
+                return `${partMap.hour}:${partMap.minute}`;
+            } else {
+                return `${partMap.year}-${partMap.month}-${partMap.day} ${partMap.hour}:${partMap.minute}`;
+            }
+        }
+
+        // Toast Helper
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const messageContainer = document.getElementById('toast-message');
+
+            toast.className = 'toast toast-error active';
+            messageContainer.textContent = message;
+
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3000);
+        }
+
+        // Main lifecycle on window mount
+        window.addEventListener('DOMContentLoaded', () => {
+            // 解析 URL 取得 code
+            const pathParts = window.location.pathname.split('/');
+            const code = pathParts[pathParts.length - 1].toUpperCase();
+
+            if (!code || code === 'CHART') {
+                showToast("無法辨識股票代碼！請回首頁重新點選。");
+                document.getElementById('stock-title').textContent = "代碼錯誤";
+                return;
+            }
+
+            // 1. 抓取股票資訊並更新 UI
+            fetchStockInfo(code);
+
+            // 2. 初始化四張 Canvas 畫布
+            initCharts();
+
+            // 3. 載入並繪製 K 線量能數據
+            loadChartData(code);
+        });
+
+        // Fetch Stock Contract Info
+        async function fetchStockInfo(code) {
+            try {
+                const res = await fetch(`/api/stock/${code}`);
+                if (!res.ok) throw new Error("API failed");
+                const data = await res.json();
+                
+                if (data.name && data.name !== 'Unknown') {
+                    document.getElementById('stock-title').textContent = `${data.name} (${data.code})`;
+                    document.title = `${data.name} (${data.code}) - 多週期量價圖`;
+                } else {
+                    document.getElementById('stock-title').textContent = `股票 (${code})`;
+                    document.title = `股票 (${code}) - 多週期量價圖`;
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('stock-title').textContent = `股票 (${code})`;
+                document.title = `股票 (${code}) - 多週期量價圖`;
+            }
+        }
+
+        // Initialize Lightweight Charts for all 4 containers
+        function initCharts() {
+            try {
+                chartKeys.forEach(key => {
+                    const container = document.getElementById(`canvas-${key}`);
+                    if (!container) return;
+                    container.innerHTML = ''; // Clear container
+
+                    const chart = LightweightCharts.createChart(container, {
+                        width: container.clientWidth || 400,
+                        height: container.clientHeight || 200,
+                        layout: {
+                            background: { type: 'solid', color: '#131722' },
+                            textColor: '#d1d4dc',
+                            fontSize: 10,
+                            fontFamily: 'Outfit, Noto Sans TC, sans-serif',
+                        },
+                        grid: {
+                            vertLines: { color: 'rgba(255, 255, 255, 0.02)' },
+                            horzLines: { color: 'rgba(255, 255, 255, 0.02)' },
+                        },
+                        crosshair: {
+                            mode: LightweightCharts.CrosshairMode.Normal,
+                        },
+                        rightPriceScale: {
+                            borderColor: 'rgba(255, 255, 255, 0.05)',
+                            visible: true,
+                        },
+                        timeScale: {
+                            borderColor: 'rgba(255, 255, 255, 0.05)',
+                            timeVisible: true,
+                            tickMarkFormatter: (time, tickMarkType, locale) => {
+                                const taipeiStr = formatUnixToTaipeiString(time, 'datetime');
+                                const parts = taipeiStr.split(' ');
+                                const datePart = parts[0];
+                                const timePart = parts[1];
+                                
+                                if (tickMarkType === 0) {
+                                    return datePart.split('-')[0]; // 年
+                                } else if (tickMarkType === 1 || tickMarkType === 2) {
+                                    const subParts = datePart.split('-');
+                                    return `${subParts[1]}-${subParts[2]}`; // MM-DD
+                                } else {
+                                    return timePart.substring(0, 5); // HH:MM
+                                }
+                            }
+                        },
+                        localization: {
+                            timeFormatter: (timestamp) => {
+                                return formatUnixToTaipeiString(timestamp, 'datetime');
+                            }
+                        }
+                    });
+
+                    const candleSeries = chart.addCandlestickSeries({
+                        upColor: '#ff3366',
+                        downColor: '#00e676',
+                        borderDownColor: '#00e676',
+                        borderUpColor: '#ff3366',
+                        wickDownColor: '#00e676',
+                        wickUpColor: '#ff3366',
+                    });
+
+                    const volumeSeries = chart.addHistogramSeries({
+                        priceFormat: { type: 'volume' },
+                        priceScaleId: 'volume',
+                    });
+
+                    chart.priceScale('volume').applyOptions({
+                        scaleMargins: { top: 0.82, bottom: 0 },
+                        visible: false,
+                    });
+
+                    charts[key] = chart;
+                    candleSeriesList[key] = candleSeries;
+                    volumeSeriesList[key] = volumeSeries;
+
+                    // Handle Resize dynamically
+                    const resizeObserver = new ResizeObserver(entries => {
+                        if (charts[key] && entries.length > 0) {
+                            const { width, height } = entries[0].contentRect;
+                            charts[key].resize(width, height);
+                        }
+                    });
+                    resizeObserver.observe(container);
+
+                    // Subscribe to hover crosshair move to show current OHLCV
+                    chart.subscribeCrosshairMove(param => {
+                        const priceLbl = document.getElementById(`price-lbl-${key}`);
+                        if (!priceLbl) return;
+
+                        if (!param || !param.time || param.point === undefined || param.point.x < 0 || param.point.y < 0) {
+                            return;
+                        }
+
+                        const candleData = param.seriesData.get(candleSeries);
+                        const volumeData = param.seriesData.get(volumeSeries);
+
+                        if (candleData) {
+                            const open = candleData.open !== undefined ? candleData.open.toFixed(2) : '--';
+                            const high = candleData.high !== undefined ? candleData.high.toFixed(2) : '--';
+                            const low = candleData.low !== undefined ? candleData.low.toFixed(2) : '--';
+                            const close = candleData.close !== undefined ? candleData.close.toFixed(2) : '--';
+                            const volume = volumeData && volumeData.value !== undefined ? Math.floor(volumeData.value) : '--';
+                            
+                            priceLbl.textContent = `開: ${open} | 高: ${high} | 低: ${low} | 收: ${close} | 量: ${volume}`;
+                        }
+                    });
+                });
+            } catch (err) {
+                console.error("❌ initCharts crashed: ", err);
+            }
+        }
+
+        // Load K-line data from one unified API call into all 4 charts
+        async function loadChartData(code) {
+            try {
+                const res = await fetch(`/api/kbars/multi/${code}?limit=1000`);
+                if (!res.ok) throw new Error("API failed");
+                const resData = await res.json();
+                
+                if (resData.success) {
+                    const data = resData.data;
+                    
+                    chartKeys.forEach(key => {
+                        const kbars = data[key] || [];
+                        const formattedCandles = [];
+                        const formattedVolume = [];
+                        
+                        kbars.forEach(bar => {
+                            const timeVal = getCorrectedUnixTimestamp(bar.time);
+                            
+                            formattedCandles.push({
+                                time: timeVal,
+                                open: bar.open,
+                                high: bar.high,
+                                low: bar.low,
+                                close: bar.close
+                            });
+                            
+                            const volColor = bar.close >= bar.open ? 'rgba(255, 51, 102, 0.4)' : 'rgba(0, 230, 118, 0.4)';
+                            
+                            formattedVolume.push({
+                                time: timeVal,
+                                value: bar.volume,
+                                color: volColor
+                            });
+                        });
+
+                        if (candleSeriesList[key]) {
+                            candleSeriesList[key].setData(formattedCandles);
+                        }
+                        if (volumeSeriesList[key]) {
+                            volumeSeriesList[key].setData(formattedVolume);
+                        }
+                        
+                        if (charts[key]) {
+                            charts[key].timeScale().fitContent();
+                        }
+                        
+                        // Set initial header text to last candle data
+                        const priceLbl = document.getElementById(`price-lbl-${key}`);
+                        if (priceLbl && kbars.length > 0) {
+                            const lastBar = kbars[kbars.length - 1];
+                            priceLbl.textContent = `開: ${lastBar.open.toFixed(2)} | 高: ${lastBar.high.toFixed(2)} | 低: ${lastBar.low.toFixed(2)} | 收: ${lastBar.close.toFixed(2)} | 量: ${Math.floor(lastBar.volume)}`;
+                        } else if (priceLbl) {
+                            priceLbl.textContent = '無歷史 K 線資料';
+                        }
+                    });
+                } else {
+                    showToast("載入多週期 K 線失敗！");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("與伺服器通訊錯誤，載入 K 線失敗。");
+            }
+        }
+    </script>
+</body>
+</html>
