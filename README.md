@@ -25,10 +25,16 @@
    * 整合 `APScheduler` 背景排程管理，**週一至週五 13:40** (台股收盤後) 自動在背景執行一鍵同步，自動補齊所有追蹤股票當日最新行情。
    * 提供前端面盤一鍵手動同步按鈕，可異步喚醒背景同步。
 
-5. **📈 Lightweight-Charts 歷史看盤彈窗**
-   * 點擊追蹤表格中的股票，立即彈出 Modal，以 TradingView 的 `lightweight-charts` 渲染歷史線圖。
-   * 支援在彈窗內快速切換 **1m, 5m, 15m, 30m, 60m, 1d** 各個週期。
+5. **📈 Lightweight-Charts 獨立多週期看盤新頁**
+   * 點擊追蹤表格中的股票，另開新分頁 (New Tab) 以 `/chart/{code}` 路由獨立展示該股的多週期趨勢。
+   * **2x2 四宮格量價共振**：在單一頁面同時呈現 **5M、15M、60M、日K** 四個週期的 K 線圖，方便觀察短中長期趨勢。
+   * **量能疊加與台北時區強護甲**：每張圖表底部精緻疊加半透明的成交量 (Volume) 柱狀圖，並配置時區修正防護，使十字游標與時間軸在世界任何地方均對齊台北時間 (UTC+8)。
    * 鎖定 Lightweight Charts 4.2.3 穩定版 CDN 連結以確保最佳相容性。
+
+6. **📥 一鍵匯入 Yahoo 熱門成交股**
+   * 提供一鍵式按鈕，自動抓取 Yahoo 股市最新成交量排行。
+   * 依據設定值篩選出股價小於等於指定金額的熱門個股，排除無效的權證或不支援商品。
+   * 比對現有清單以過濾重複項目，並自動呼叫背景任務進行 1K 斷點同步與多週期聚合。
 
 ---
 
@@ -39,7 +45,8 @@ c:\Intel\Shioaji_stock\
 ├── app/
 │   └── main.py              # FastAPI 服務入口、Web APIs、APScheduler 生命週期
 ├── frontend/
-│   ├── index.html           # 磨砂玻璃霓虹風 Dashboard SPA (含 Lightweight-Charts 彈窗)
+│   ├── index.html           # 磨砂玻璃霓虹風 Dashboard 首頁 (股票追蹤名單管理)
+│   ├── chart.html           # 獨立 2x2 多週期看盤面盤 (K線 + 成交量疊加)
 │   └── lightweight-charts.standalone.production.js # 本地備份圖表庫 (可替換 CDN)
 ├── scratch/
 │   └── test_stock_sync.py   # 獨立核心下載與聚合管道測試驗證腳本
@@ -75,6 +82,10 @@ DB_NAME="Shioaji.db"
 
 # 當新增一檔全新股票且資料表全空時，預設向前回溯下載的天數 (預設 30 天，可設至 180 天)
 DEFAULT_START_DAYS=30
+
+# Yahoo 熱門股匯入設定
+YAHOO_IMPORT_MAX_PRICE=100  # 股價上限 (篩選不大於此金額的股票)
+YAHOO_IMPORT_LIMIT=20       # 排行抓取數量 (預設分析成交量前 20 名)
 ```
 
 ---
@@ -125,7 +136,11 @@ python app/main.py
 | `POST` | `/api/wishlist` | 新增股票代碼並於背景觸發該股歷史數據下載 |
 | `DELETE` | `/api/wishlist/{code}`| 將股票自清單移除並清除其歷史 K 線資料 |
 | `POST` | `/api/sync` | 背景手動觸發一鍵 Full-Sync 下載同步 (斷點續傳) |
+| `POST` | `/api/import_yahoo` | 爬取 Yahoo 成交量排行並將低價熱門股匯入 wish list 進行背景同步 |
 | `GET` | `/api/kbars/{code}` | 讀取單檔股票特定週期歷史數據，提供前端 Lightweight-Charts 繪圖 |
+| `GET` | `/chart/{code}` | 渲染獨立的 2x2 四宮格 K 線與量能看盤頁面 |
+| `GET` | `/api/stock/{code}` | 獲取特定個股的最新合約名稱（整合 Shioaji 與 DB Fallback 查詢機制） |
+| `GET` | `/api/kbars/multi/{code}`| 一鍵查詢單檔股票多週期 (5K, 15K, 60K, 日K) 的 K 線與交易量歷史數據 |
 
 ---
 
