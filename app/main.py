@@ -9,6 +9,8 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+import requests
+from bs4 import BeautifulSoup
 
 import download_stock_data as dsd
 import scheduler_manager as sm
@@ -20,6 +22,11 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 logger = logging.getLogger(__name__)
+
+# Yahoo Import Settings
+YAHOO_IMPORT_MAX_PRICE = int(os.getenv("YAHOO_IMPORT_MAX_PRICE", "100"))
+YAHOO_IMPORT_LIMIT = int(os.getenv("YAHOO_IMPORT_LIMIT", "20"))
+
 
 # Lifespan for Shioaji Init & Scheduler
 @asynccontextmanager
@@ -216,6 +223,108 @@ def trigger_all_sync(background_tasks: BackgroundTasks):
     background_tasks.add_task(sm.sync_all_wish_stocks, api)
     return {"message": "Manual sync triggered in the background for all active stocks."}
 
+@app.post("/api/import_yahoo")
+def import_yahoo_stock(background_tasks: BackgroundTasks):
+    """匯入 Yahoo 成交量排行前 YAHOO_IMPORT_LIMIT 且股價 <= YAHOO_IMPORT_MAX_PRICE 的股票"""
+    is_online = hasattr(app.state, 'api') and app.state.api is not None
+    if not is_online:
+        raise HTTPException(status_code=503, detail="Shioaji API is not logged in. Operation unavailable.")
+        
+    api = app.state.api
+    
+    try:
+        url = "https://tw.stock.yahoo.com/rank/volume"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        r = requests.get(url, headers=headers, timeout=10)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.text, "html.parser")
+        
+        rows = soup.select('li div[class*="table-row"]')
+        
+        wish_stocks = dsd.get_wish_list()
+        existing_codes = {s['code'] for s in wish_stocks}
+        
+        added_count = 0
+        imported_stocks = []
+        
+        for row in rows[:YAHOO_IMPORT_LIMIT]:
+            try:
+                # 尋找連結與代碼
+                link = row.select_one('a[href*="/quote/"]')
+                if not link:
+                    continue
+                
+                href = str(link["href"])
+                parts = href.split("/quote/")
+                if len(parts) < 2:
+                    continue
+                
+                code_with_market = parts[1].split("?")[0].split("#")[0]
+                if "." in code_with_market:
+                    code_raw = code_with_market.split(".")[0]
+                else:
+                    code_raw = code_with_market
+                
+                # 尋找名稱
+                name_div = row.select_one('div[class*="Lh(20px)"]')
+                if name_div:
+                    stock_name = name_div.get_text(strip=True)
+                else:
+                    stock_name = link.get_text(strip=True)
+                    if code_raw in stock_name:
+                        stock_name = stock_name.replace(code_raw, "")
+                
+                # 尋找價格 Price
+                cells = row.find_all("div", recursive=False)
+                price = None
+                found_link_cell = False
+                for cell in cells:
+                    if link in cell.find_all("a"):
+                        found_link_cell = True
+                        continue
+                    
+                    if found_link_cell:
+                        txt = cell.get_text(strip=True).replace(",", "")
+                        try:
+                            val = float(txt)
+                            price = val
+                            break
+                        except ValueError:
+                            continue
+                
+                if price is not None and price <= YAHOO_IMPORT_MAX_PRICE:
+                    if code_raw not in existing_codes:
+                        # 驗證該股票在 Shioaji 中是否存在合約
+                        try:
+                            contract = api.Contracts.Stocks[code_raw]
+                            if contract:
+                                real_name = contract.name or stock_name
+                                success = dsd.add_to_wish_list(code_raw, real_name)
+                                if success:
+                                    # 觸發背景同步
+                                    dsd.sync_tracker.set_status(code_raw, "pending")
+                                    background_tasks.add_task(dsd.sync_to_latest, api, code_raw)
+                                    
+                                    imported_stocks.append(f"{real_name}({code_raw})")
+                                    added_count += 1
+                                    existing_codes.add(code_raw)
+                        except Exception as e:
+                            logger.error(f"Failed to verify stock {code_raw} via Shioaji: {e}")
+            except Exception as e:
+                logger.error(f"Error processing Yahoo stock row: {e}")
+                continue
+                
+        return {
+            "success": True,
+            "message": f"成功匯入 {added_count} 檔股價 <= {YAHOO_IMPORT_MAX_PRICE} 的熱門股: {', '.join(imported_stocks)}" if added_count > 0 else f"抓取排行前 {YAHOO_IMPORT_LIMIT} 檔，但沒有新增任何股票 (可能均已在清單中，或股價均高於 {YAHOO_IMPORT_MAX_PRICE} 元)",
+            "imported": imported_stocks
+        }
+    except Exception as e:
+        logger.error(f"Failed to import Yahoo stocks: {e}")
+        raise HTTPException(status_code=500, detail=f"匯入 Yahoo 股票失敗: {str(e)}")
+
 @app.get("/api/kbars/{code}")
 def get_kbars(code: str, timeframe: str = "1k", limit: int = 500):
     """Gets historical K-bars for a specific stock and timeframe, sorted chronologically."""
@@ -257,6 +366,74 @@ def get_kbars(code: str, timeframe: str = "1k", limit: int = 500):
         raise HTTPException(status_code=500, detail="Database query failed.")
     finally:
         conn.close()
+
+@app.get("/api/kbars/multi/{code}")
+def get_multi_kbars(code: str, limit: int = 1000):
+    """Gets historical K-bars for multiple timeframes (5k, 15k, 60k, 1d) in one call."""
+    timeframes = ["5k", "15k", "60k", "1d"]
+    conn = dsd.get_db_connection()
+    result = {}
+    try:
+        for tf in timeframes:
+            table_name = f"stock{tf}"
+            query = f"""
+                SELECT ts as time, open, high, low, close, volume
+                FROM (
+                    SELECT ts, open, high, low, close, volume
+                    FROM {table_name}
+                    WHERE code = ?
+                    ORDER BY ts DESC
+                    LIMIT ?
+                )
+                ORDER BY ts ASC
+            """
+            rows = conn.execute(query, (code, limit)).fetchall()
+            result[tf] = [dict(row) for row in rows]
+            
+        return {
+            "success": True,
+            "code": code,
+            "data": result
+        }
+    except Exception as e:
+        logger.error(f"Failed to query multi kbars for {code}: {e}")
+        raise HTTPException(status_code=500, detail="Database query failed.")
+    finally:
+        conn.close()
+
+@app.get("/chart/{code}", response_class=HTMLResponse)
+async def get_chart_page(code: str):
+    """Serves the multi-timeframe chart page."""
+    html_file = frontend_path / "chart.html"
+    if html_file.exists():
+        return html_file.read_text(encoding="utf-8")
+    return "<h1>chart.html not found. Place it in frontend/chart.html</h1>"
+
+@app.get("/api/stock/{code}")
+def get_stock_info(code: str):
+    """Gets stock code and name (from Shioaji contract or Database wish_list fallback)."""
+    is_online = hasattr(app.state, 'api') and app.state.api is not None
+    name = "Unknown"
+    
+    if is_online:
+        try:
+            contract = app.state.api.Contracts.Stocks[code]
+            if contract:
+                return {"code": code, "name": contract.name or "Unknown"}
+        except Exception:
+            pass
+            
+    try:
+        conn = dsd.get_db_connection()
+        row = conn.execute("SELECT name FROM wish_list WHERE code = ?", (code,)).fetchone()
+        if row:
+            name = row['name']
+    except Exception:
+        pass
+    finally:
+        conn.close()
+        
+    return {"code": code, "name": name}
 
 if __name__ == "__main__":
     import uvicorn
