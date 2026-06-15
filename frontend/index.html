@@ -130,15 +130,16 @@
         /* Top Action Bar */
         .action-bar {
             display: grid;
-            grid-template-columns: 2fr 1fr;
+            grid-template-columns: 1.2fr 1fr;
             gap: 1.5rem;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 992px) {
             .action-bar {
                 grid-template-columns: 1fr;
             }
         }
+
 
         .search-add-box {
             display: flex;
@@ -356,132 +357,7 @@
             transform: scale(1.05);
         }
 
-        /* Modal styling */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(8px);
-            z-index: 100;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
 
-        .modal-overlay.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .modal-card {
-            background: #111422;
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            width: 90%;
-            max-width: 900px;
-            height: 80vh;
-            max-height: 600px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 242, 254, 0.1);
-            transform: translateY(30px);
-            transition: transform 0.3s ease;
-            overflow: hidden;
-        }
-
-        .modal-overlay.active .modal-card {
-            transform: translateY(0);
-        }
-
-        .modal-header {
-            padding: 1.5rem 2rem;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-title-section {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-
-        .modal-title {
-            font-size: 1.35rem;
-            font-weight: 700;
-        }
-
-        .modal-subtitle {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.5rem;
-            cursor: pointer;
-            transition: color 0.3s ease;
-        }
-
-        .modal-close:hover {
-            color: var(--text-primary);
-        }
-
-        .timeframe-selector {
-            display: flex;
-            gap: 0.5rem;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 0.25rem;
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-        }
-
-        .timeframe-btn {
-            background: none;
-            border: none;
-            padding: 0.4rem 0.8rem;
-            border-radius: 8px;
-            color: var(--text-secondary);
-            font-family: inherit;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .timeframe-btn.active {
-            background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
-            color: #fff;
-            box-shadow: 0 2px 8px rgba(0, 242, 254, 0.3);
-        }
-
-        .modal-body {
-            flex-grow: 1;
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            position: relative;
-        }
-
-        #chart-container {
-            width: 100%;
-            flex-grow: 1;
-            min-height: 0;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            background-color: #131722;
-        }
 
         /* Loading Spinner */
         .spinner {
@@ -556,9 +432,12 @@
                     <i class="fa-solid fa-plus"></i> 新增股票
                 </button>
             </div>
-            <!-- One Key Sync -->
-            <div class="sync-box">
-                <button id="sync-btn" class="btn btn-secondary" style="width: 100%;">
+            <!-- One Key Sync & Import -->
+            <div class="sync-box" style="display: flex; gap: 0.75rem; width: 100%;">
+                <button id="import-yahoo-btn" class="btn btn-secondary" style="flex: 1;">
+                    <i class="fa-solid fa-download"></i> 匯入 Yahoo 熱門股
+                </button>
+                <button id="sync-btn" class="btn btn-secondary" style="flex: 1;">
                     <i class="fa-solid fa-rotate"></i> 一鍵更新所有股票
                 </button>
             </div>
@@ -597,29 +476,7 @@
         </div>
     </div>
 
-    <!-- Modal for chart -->
-    <div id="chart-modal" class="modal-overlay">
-        <div class="modal-card">
-            <div class="modal-header">
-                <div class="modal-title-section">
-                    <span id="modal-stock-title" class="modal-title">股票名稱 (代號)</span>
-                    <span id="modal-stock-subtitle" class="modal-subtitle">歷史 K 線數據</span>
-                </div>
-                <div class="timeframe-selector">
-                    <button class="timeframe-btn active" data-tf="1k">1m</button>
-                    <button class="timeframe-btn" data-tf="5k">5m</button>
-                    <button class="timeframe-btn" data-tf="15k">15m</button>
-                    <button class="timeframe-btn" data-tf="30k">30m</button>
-                    <button class="timeframe-btn" data-tf="60k">60m</button>
-                    <button class="timeframe-btn" data-tf="1d">1d</button>
-                </div>
-                <button id="close-modal-btn" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body">
-                <div id="chart-container"></div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Toast -->
     <div id="toast" class="toast">
@@ -629,11 +486,6 @@
 
     <!-- Script Section -->
     <script>
-        let selectedStockCode = null;
-        let selectedTimeframe = "1k";
-        let chart = null;
-        let candleSeries = null;
-        let volumeSeries = null;
         let pollingTimer = null;
 
         // Fetch Status & Wishlist on mount
@@ -646,26 +498,8 @@
             document.getElementById('stock-input').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') addStock();
             });
+            document.getElementById('import-yahoo-btn').addEventListener('click', importYahooStocks);
             document.getElementById('sync-btn').addEventListener('click', syncAllStocks);
-            document.getElementById('close-modal-btn').addEventListener('click', hideModal);
-
-            // Modal overlay click to close
-            document.getElementById('chart-modal').addEventListener('click', (e) => {
-                if (e.target.id === 'chart-modal') hideModal();
-            });
-
-            // Timeframe buttons selector
-            const tfBtns = document.querySelectorAll('.timeframe-btn');
-            tfBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    tfBtns.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    selectedTimeframe = btn.getAttribute('data-tf');
-                    if (selectedStockCode) {
-                        loadChartData(selectedStockCode, selectedTimeframe);
-                    }
-                });
-            });
         });
 
         // Toast Helper
@@ -828,10 +662,10 @@
                     </td>
                 `;
 
-                // Row click triggers Chart Modal (except clicking on delete button)
+                // Row click opens chart in a new tab
                 tr.addEventListener('click', (e) => {
                     if (e.target.closest('.delete-btn')) return;
-                    showModal(stock.code, stock.name);
+                    window.open(`/chart/${stock.code}`, '_blank');
                 });
 
                 // Attach delete event
@@ -902,6 +736,31 @@
             }
         }
 
+        // Import Yahoo Stocks
+        async function importYahooStocks() {
+            const btn = document.getElementById('import-yahoo-btn');
+            const origHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> 正在匯入 Yahoo 熱門股...';
+
+            try {
+                const res = await fetch('/api/import_yahoo', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message, 'success');
+                    fetchWishlist();
+                } else {
+                    showToast(data.detail || "匯入失敗", 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("與伺服器通訊錯誤", 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHTML;
+            }
+        }
+
         // Sync All Stocks
         async function syncAllStocks() {
             const btn = document.getElementById('sync-btn');
@@ -924,129 +783,6 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origHTML;
-            }
-        }
-
-        // Show Modal & Load Chart
-        function showModal(code, name) {
-            selectedStockCode = code;
-            document.getElementById('modal-stock-title').textContent = `${name} (${code})`;
-            
-            // Set default timeframe active
-            const tfBtns = document.querySelectorAll('.timeframe-btn');
-            tfBtns.forEach(b => b.classList.remove('active'));
-            document.querySelector('[data-tf="1k"]').classList.add('active');
-            selectedTimeframe = "1k";
-
-            document.getElementById('chart-modal').classList.add('active');
-            
-            // Initialize Lightweight Chart
-            setTimeout(() => {
-                initChart();
-                loadChartData(code, selectedTimeframe);
-            }, 50);
-        }
-
-        // Hide Modal
-        function hideModal() {
-            document.getElementById('chart-modal').classList.remove('active');
-            if (chart) {
-                chart.remove();
-                chart = null;
-            }
-            selectedStockCode = null;
-        }
-
-        // Initialize Lightweight Charts
-        function initChart() {
-            try {
-                const container = document.getElementById('chart-container');
-                container.innerHTML = ''; // Clear container
-
-                chart = LightweightCharts.createChart(container, {
-                    width: container.clientWidth || 800,
-                    height: 400,
-                    layout: {
-                        background: { type: 'solid', color: '#131722' },
-                        textColor: '#d1d4dc',
-                    },
-                    grid: {
-                        vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
-                        horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
-                    },
-                    crosshair: {
-                        mode: LightweightCharts.CrosshairMode.Normal,
-                    },
-                    rightPriceScale: {
-                        borderColor: 'rgba(255, 255, 255, 0.1)',
-                    },
-                    timeScale: {
-                        borderColor: 'rgba(255, 255, 255, 0.1)',
-                        timeVisible: true,
-                    },
-                });
-
-                candleSeries = chart.addCandlestickSeries({
-                    upColor: '#ff3366',
-                    downColor: '#00e676',
-                    borderDownColor: '#00e676',
-                    borderUpColor: '#ff3366',
-                    wickDownColor: '#00e676',
-                    wickUpColor: '#ff3366',
-                });
-
-                // Handle Resize
-                const resizeObserver = new ResizeObserver(entries => {
-                    if (chart && entries.length > 0) {
-                        const { width, height } = entries[0].contentRect;
-                        chart.resize(width, height);
-                    }
-                });
-                resizeObserver.observe(container);
-            } catch (err) {
-                console.error("❌ initChart crashed: ", err);
-            }
-        }
-
-        // Load K-line data into Chart
-        async function loadChartData(code, timeframe) {
-            if (!chart) return;
-            
-            try {
-                const res = await fetch(`/api/kbars/${code}?timeframe=${timeframe}&limit=1000`);
-                const data = await res.json();
-                
-                if (data.success) {
-                    const formattedData = data.kbars.map(bar => {
-                        // lightweight-charts needs UNIX timestamps (seconds) or string 'YYYY-MM-DD'
-                        let timeVal;
-                        if (timeframe === '1d') {
-                            timeVal = bar.time.split(' ')[0]; // Extract YYYY-MM-DD
-                        } else {
-                            // Convert standard timestamp to Unix timestamp (seconds)
-                            timeVal = Math.floor(new Date(bar.time).getTime() / 1000);
-                        }
-                        
-                        return {
-                            time: timeVal,
-                            open: bar.open,
-                            high: bar.high,
-                            low: bar.low,
-                            close: bar.close
-                        };
-                    });
-
-                    candleSeries.setData(formattedData);
-                    chart.timeScale().fitContent();
-                    
-                    document.getElementById('modal-stock-subtitle').textContent = 
-                        `K 線週期: ${timeframe.toUpperCase()} (共 ${formattedData.length} 根 K棒)`;
-                } else {
-                    showToast("載入圖表 K 線失敗", "error");
-                }
-            } catch (err) {
-                console.error(err);
-                showToast("與伺服器通訊錯誤", "error");
             }
         }
     </script>
