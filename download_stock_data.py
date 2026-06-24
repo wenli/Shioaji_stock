@@ -241,22 +241,55 @@ def download_stock_kbars(api, contract, start_date: str, end_date: str) -> dict:
     logger.info(f"Downloading 1k K-bars for Stock {code} from {start_date} to {end_date}...")
 
     try:
-        kbars = api.kbars(contract=contract, start=start_date, end=end_date)
+        start_dt = pd.to_datetime(start_date)
+        end_dt = pd.to_datetime(end_date)
         
-        if not kbars or not hasattr(kbars, 'ts') or len(kbars.ts) == 0:
-            logger.warning(f"No data returned for Stock {code}.")
+        # 由於 Shioaji API 每次查詢 K 線區間不能超過 30 天，
+        # 我們將 start_date 到 end_date 區間拆分成多個不超過 29 天的區間
+        chunks = []
+        current_start = start_dt
+        while current_start <= end_dt:
+            current_end = min(current_start + pd.Timedelta(days=29), end_dt)
+            chunks.append((current_start.strftime('%Y-%m-%d'), current_end.strftime('%Y-%m-%d')))
+            current_start = current_end + pd.Timedelta(days=1)
+            
+        logger.info(f"Splitted request into {len(chunks)} chunk(s).")
+        
+        all_kbars_list = []
+        for index, (s_str, e_str) in enumerate(chunks):
+            logger.info(f"Fetching chunk {index+1}/{len(chunks)}: {s_str} to {e_str}")
+            
+            # 多個 chunk 下載時，小睡 0.5 秒避免觸發 Rate Limit
+            if index > 0:
+                time.sleep(0.5)
+                
+            kbars = api.kbars(contract=contract, start=s_str, end=e_str)
+            
+            if kbars and hasattr(kbars, 'ts') and len(kbars.ts) > 0:
+                df_chunk = pd.DataFrame({
+                    'ts': kbars.ts,
+                    'open': kbars.Open,
+                    'high': kbars.High,
+                    'low': kbars.Low,
+                    'close': kbars.Close,
+                    'volume': kbars.Volume
+                })
+                all_kbars_list.append(df_chunk)
+            else:
+                logger.info(f"No data returned for chunk {s_str} to {e_str}")
+                
+        if not all_kbars_list:
+            logger.warning(f"No data returned for Stock {code} in the entire range.")
             sync_tracker.set_status(code, "success")
             return {}
-
-        # 1. Create 1k DataFrame
-        df_1k = pd.DataFrame({
-            'ts': kbars.ts,
-            'open': kbars.Open,
-            'high': kbars.High,
-            'low': kbars.Low,
-            'close': kbars.Close,
-            'volume': kbars.Volume
-        })
+            
+        # 合併所有 chunk 的 K 線資料
+        df_1k = pd.concat(all_kbars_list, ignore_index=True)
+        # 去除可能重疊的 ts
+        df_1k.drop_duplicates(subset=['ts'], inplace=True)
+        # 依時間戳排序
+        df_1k.sort_values(by='ts', inplace=True)
+        
         df_1k['code'] = code
 
         # Convert ts to datetime index for resampling

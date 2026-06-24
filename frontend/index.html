@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Lightweight Charts 4.2.3 CDN -->
     <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-color: #0b0c10;
@@ -402,6 +404,80 @@
 
         .toast-success .toast-icon { color: var(--neon-green); }
         .toast-error .toast-icon { color: var(--neon-red); }
+
+        /* Settings Box */
+        .settings-box {
+            padding: 1.5rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            transition: all 0.3s ease;
+        }
+
+        .settings-box:hover {
+            border-color: rgba(0, 242, 254, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(0, 242, 254, 0.05);
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        .settings-header i {
+            color: var(--neon-blue);
+        }
+
+        .settings-fields {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            align-items: flex-end;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .input-group label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .input-group input {
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+        }
+
     </style>
 </head>
 <body>
@@ -432,13 +508,37 @@
                     <i class="fa-solid fa-plus"></i> 新增股票
                 </button>
             </div>
-            <!-- One Key Sync & Import -->
+            <!-- One Key Sync, Import & Backtest -->
             <div class="sync-box" style="display: flex; gap: 0.75rem; width: 100%;">
                 <button id="import-yahoo-btn" class="btn btn-secondary" style="flex: 1;">
-                    <i class="fa-solid fa-download"></i> 匯入 Yahoo 熱門股
+                    <i class="fa-solid fa-download"></i> 匯入 Yahoo
                 </button>
+                <a href="/backtest" target="_blank" class="btn btn-secondary" style="flex: 1; text-decoration: none;">
+                    <i class="fa-solid fa-flask"></i> SMC 回測
+                </a>
                 <button id="sync-btn" class="btn btn-secondary" style="flex: 1;">
-                    <i class="fa-solid fa-rotate"></i> 一鍵更新所有股票
+                    <i class="fa-solid fa-rotate"></i> 一鍵更新
+                </button>
+            </div>
+        </div>
+
+        <!-- Yahoo Settings Panel -->
+        <div class="settings-box">
+            <div class="settings-header">
+                <i class="fa-solid fa-sliders"></i>
+                <span>Yahoo 匯入設定</span>
+            </div>
+            <div class="settings-fields">
+                <div class="input-group">
+                    <label for="settings-max-price">最大股價限制 (元)</label>
+                    <input type="number" id="settings-max-price" min="1" placeholder="例如：100">
+                </div>
+                <div class="input-group">
+                    <label for="settings-limit">最大匯入數量 (檔)</label>
+                    <input type="number" id="settings-limit" min="1" placeholder="例如：20">
+                </div>
+                <button id="save-settings-btn" class="btn btn-primary" style="height: 45px;">
+                    <i class="fa-solid fa-floppy-disk"></i> 儲存設定
                 </button>
             </div>
         </div>
@@ -474,6 +574,7 @@
                 </table>
             </div>
         </div>
+
     </div>
 
 
@@ -492,6 +593,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             fetchStatus();
             fetchWishlist();
+            fetchYahooSettings();
 
             // Event Listeners
             document.getElementById('add-btn').addEventListener('click', addStock);
@@ -500,6 +602,7 @@
             });
             document.getElementById('import-yahoo-btn').addEventListener('click', importYahooStocks);
             document.getElementById('sync-btn').addEventListener('click', syncAllStocks);
+            document.getElementById('save-settings-btn').addEventListener('click', saveYahooSettings);
         });
 
         // Toast Helper
@@ -780,6 +883,57 @@
             } catch (err) {
                 console.error(err);
                 showToast("同步錯誤", 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHTML;
+            }
+        }
+        // Fetch Yahoo Settings
+        async function fetchYahooSettings() {
+            try {
+                const res = await fetch('/api/settings/yahoo');
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('settings-max-price').value = data.max_price;
+                    document.getElementById('settings-limit').value = data.limit;
+                }
+            } catch (err) {
+                console.error("無法獲取 Yahoo 匯入設定：", err);
+            }
+        }
+
+        // Save Yahoo Settings
+        async function saveYahooSettings() {
+            const maxPriceInput = document.getElementById('settings-max-price');
+            const limitInput = document.getElementById('settings-limit');
+            const maxPrice = parseInt(maxPriceInput.value);
+            const limit = parseInt(limitInput.value);
+
+            if (isNaN(maxPrice) || maxPrice <= 0 || isNaN(limit) || limit <= 0) {
+                showToast("最大價格限制與匯入數量必須大於 0", "error");
+                return;
+            }
+
+            const btn = document.getElementById('save-settings-btn');
+            const origHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> 正在儲存...';
+
+            try {
+                const res = await fetch('/api/settings/yahoo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ max_price: maxPrice, limit: limit })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message, 'success');
+                } else {
+                    showToast(data.detail || "儲存失敗", 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("與伺服器通訊錯誤", 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origHTML;

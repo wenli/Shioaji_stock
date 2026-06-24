@@ -14,6 +14,8 @@ from bs4 import BeautifulSoup
 
 import download_stock_data as dsd
 import scheduler_manager as sm
+import pandas as pd
+from app import backtester
 
 # Setup Logging
 logging.basicConfig(
@@ -61,6 +63,49 @@ app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 class WishlistRequest(BaseModel):
     code: str
+
+class YahooSettingsRequest(BaseModel):
+    max_price: int
+    limit: int
+
+class BacktestRequest(BaseModel):
+    code: str
+    start_date: str
+    end_date: str
+    initial_balance: float = 1001000.0
+    risk_pct: float = 0.01
+    rr_ratio: float = 2.0
+    htf_window: int = 20
+    entry_mode: str = "fvg_top"
+    sl_buffer_pct: float = 0.2
+    fee_discount: float = 0.6
+    enable_short: bool = False
+    holding_mode: str = "day_trade"
+    ltf_timeframe: str = "5k"
+    strategy_name: str = "smc"
+
+def update_env_file(key: str, value: str):
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if not env_path.exists():
+        logger.error(f".env file not found at {env_path}")
+        return
+    try:
+        content = env_path.read_text(encoding="utf-8")
+        lines = content.splitlines()
+        updated = False
+        for i, line in enumerate(lines):
+            # 支援可能帶有空白的等號
+            if line.strip().startswith(f"{key}=") or line.strip().startswith(f"{key} ="):
+                lines[i] = f"{key}={value}"
+                updated = True
+                break
+        if not updated:
+            lines.append(f"{key}={value}")
+        env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        logger.info(f"Successfully updated {key}={value} in .env")
+    except Exception as e:
+        logger.error(f"Error writing to .env: {e}")
+        raise e
 
 @app.get("/", response_class=HTMLResponse)
 async def get_index():
@@ -161,7 +206,7 @@ def get_wishlist():
             "last_5k": last_5k or "No Data",
             "last_1d": last_1d or "No Data",
             "live_price": close_price if close_price is not None else "N/A",
-            "change_rate": snap.get("change_rate", 0) * 100 if snap.get("change_rate") is not None else 0,
+            "change_rate": snap.get("change_rate", 0) if snap.get("change_rate") is not None else 0,
             "change_price": snap.get("change_price", 0) if snap.get("change_price") is not None else 0,
             "sync_status": tracker_status.get("status", "idle"),
             "sync_error": tracker_status.get("error", ""),
@@ -222,6 +267,33 @@ def trigger_all_sync(background_tasks: BackgroundTasks):
     api = app.state.api
     background_tasks.add_task(sm.sync_all_wish_stocks, api)
     return {"message": "Manual sync triggered in the background for all active stocks."}
+
+@app.get("/api/settings/yahoo")
+def get_yahoo_settings():
+    """Gets current Yahoo Import Settings (max price, limit)."""
+    return {
+        "max_price": YAHOO_IMPORT_MAX_PRICE,
+        "limit": YAHOO_IMPORT_LIMIT
+    }
+
+@app.post("/api/settings/yahoo")
+def update_yahoo_settings(req: YahooSettingsRequest):
+    """Updates Yahoo Import Settings in memory and persists them to .env."""
+    global YAHOO_IMPORT_MAX_PRICE, YAHOO_IMPORT_LIMIT
+    if req.max_price <= 0 or req.limit <= 0:
+        raise HTTPException(status_code=400, detail="價格與數量限制必須大於 0")
+    
+    try:
+        update_env_file("YAHOO_IMPORT_MAX_PRICE", str(req.max_price))
+        update_env_file("YAHOO_IMPORT_LIMIT", str(req.limit))
+        
+        YAHOO_IMPORT_MAX_PRICE = req.max_price
+        YAHOO_IMPORT_LIMIT = req.limit
+        
+        return {"message": "設定儲存成功，已寫入 .env 檔案"}
+    except Exception as e:
+        logger.error(f"Failed to update settings: {e}")
+        raise HTTPException(status_code=500, detail=f"儲存設定失敗: {str(e)}")
 
 @app.post("/api/import_yahoo")
 def import_yahoo_stock(background_tasks: BackgroundTasks):
@@ -409,6 +481,14 @@ async def get_chart_page(code: str):
         return html_file.read_text(encoding="utf-8")
     return "<h1>chart.html not found. Place it in frontend/chart.html</h1>"
 
+@app.get("/backtest", response_class=HTMLResponse)
+async def get_backtest_page():
+    """Serves the SMC Backtest page."""
+    html_file = frontend_path / "backtest.html"
+    if html_file.exists():
+        return html_file.read_text(encoding="utf-8")
+    return "<h1>backtest.html not found. Place it in frontend/backtest.html</h1>"
+
 @app.get("/api/stock/{code}")
 def get_stock_info(code: str):
     """Gets stock code and name (from Shioaji contract or Database wish_list fallback)."""
@@ -433,7 +513,76 @@ def get_stock_info(code: str):
     finally:
         conn.close()
         
-    return {"code": code, "name": name}
+@app.post("/api/backtest")
+def run_backtest_endpoint(req: BacktestRequest):
+    """Runs the SMC backtest, automatically syncing historical data if incomplete."""
+    
+    # 檢查並補齊本地 SQLite 的歷史 K 線數據
+    conn = dsd.get_db_connection()
+    row = None
+    try:
+        row = conn.execute("SELECT MIN(ts) as min_ts, MAX(ts) as max_ts FROM stock1d WHERE code = ?", (req.code,)).fetchone()
+    except Exception as e:
+        logger.error(f"Error querying stock1d min/max for backtest: {e}")
+    finally:
+        conn.close()
+
+    # 檢查 Shioaji 在線狀態以決定是否能下載
+    is_online = hasattr(app.state, 'api') and app.state.api is not None
+    
+    if is_online:
+        api = app.state.api
+        try:
+            # 我們需要回測起點往前推 3 天，確保 5分K 有足夠歷史資料計算 PDL (前一日最低點)
+            start_dt_sync = (pd.to_datetime(req.start_date) - pd.Timedelta(days=3)).strftime('%Y-%m-%d')
+            end_dt_sync = req.end_date
+            
+            need_download = False
+            if not row or not row['min_ts'] or not row['max_ts']:
+                need_download = True
+            else:
+                db_min = pd.to_datetime(row['min_ts']).strftime('%Y-%m-%d')
+                db_max = pd.to_datetime(row['max_ts']).strftime('%Y-%m-%d')
+                if start_dt_sync < db_min or end_dt_sync > db_max:
+                    need_download = True
+                    
+            if need_download:
+                contract = api.Contracts.Stocks[req.code]
+                if not contract:
+                    raise HTTPException(status_code=400, detail=f"Stock code {req.code} not found in Shioaji Contracts.")
+                
+                logger.info(f"Backtest data incomplete for {req.code}. Syncing from Shioaji: {start_dt_sync} to {end_dt_sync}...")
+                dsd.download_stock_kbars(api, contract, start_dt_sync, end_dt_sync)
+        except Exception as e:
+            logger.error(f"Failed to automatically sync backtest data: {e}")
+            # 即使失敗，後面還是會嘗試使用本地已有資料進行回測
+            
+    # 執行回測
+    try:
+        result = backtester.run_backtest(
+            code=req.code,
+            start_date=req.start_date,
+            end_date=req.end_date,
+            initial_balance=req.initial_balance,
+            risk_pct=req.risk_pct,
+            rr_ratio=req.rr_ratio,
+            htf_window=req.htf_window,
+            entry_mode=req.entry_mode,
+            sl_buffer_pct=req.sl_buffer_pct,
+            fee_discount=req.fee_discount,
+            enable_short=req.enable_short,
+            holding_mode=req.holding_mode,
+            ltf_timeframe=req.ltf_timeframe,
+            strategy_name=req.strategy_name
+        )
+        if not result.get("success", False):
+            raise HTTPException(status_code=400, detail=result.get("error", "回測執行失敗"))
+        return result
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Backtest execution failed: {e}")
+        raise HTTPException(status_code=500, detail=f"回測執行錯誤: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
