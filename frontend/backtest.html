@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMC Strategy Backtester</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --card-bg: rgba(22, 26, 37, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --neon-blue: #00f2fe;
+            --neon-purple: #4facfe;
+            --neon-red: #ff3366;
+            --neon-green: #00e676;
+            --hover-blue: rgba(0, 242, 254, 0.15);
+            --glass-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            background: radial-gradient(circle at top right, #1b2030 0%, #08090c 70%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2.5rem 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1400px;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Header design */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: var(--glass-glow);
+        }
+
+        .header-title-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-glow {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.45);
+            font-size: 1.5rem;
+            color: #fff;
+        }
+
+        .header-title-section h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-title-section p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .nav-back {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .nav-back:hover {
+            color: var(--neon-blue);
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
+            transform: translateX(-3px);
+        }
+
+        /* 雙欄排版佈局 */
+        .workspace {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 2rem;
+            align-items: flex-start;
+        }
+
+        @media (max-width: 1024px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 左欄：回測參數控制面板 */
+        .control-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: var(--glass-glow);
+            padding: 1.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            position: sticky;
+            top: 2rem;
+        }
+
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .panel-title i {
+            color: var(--neon-blue);
+            -webkit-text-fill-color: initial;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .form-group input, .form-group select {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .form-group select option {
+            background: #161a25;
+            color: var(--text-primary);
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+        }
+
+        /* 雙欄表單元素 */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.85rem 1.5rem;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.25);
+            font-size: 1rem;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 242, 254, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 右欄：回測結果展示區 */
+        .results-section {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            min-width: 0; /* 防止 grid 溢出 */
+        }
+
+        /* 統計指標卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem;
+            box-shadow: var(--glass-glow);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: rgba(0, 242, 254, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-val {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .stat-val.up {
+            color: var(--neon-green);
+            text-shadow: 0 0 10px rgba(0, 230, 118, 0.2);
+        }
+
+        .stat-val.down {
+            color: var(--neon-red);
+            text-shadow: 0 0 10px rgba(255, 51, 102, 0.2);
+        }
+
+        /* 圖表卡片 */
+        .chart-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: var(--glass-glow);
+        }
+
+        .chart-header {
+            margin-bottom: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-header h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 320px;
+            width: 100%;
+        }
+
+        /* 交易明細卡片 */
+        .log-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: var(--glass-glow);
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .log-header h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            width: 100%;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            padding: 0.85rem 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 2px solid var(--border-color);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            background: #11141d;
+            z-index: 10;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge-type {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+            border: 1px solid currentColor;
+            display: inline-block;
+        }
+
+        .badge-type.profit {
+            color: var(--neon-green);
+            background: rgba(0, 230, 118, 0.1);
+        }
+
+        .badge-type.loss {
+            color: var(--neon-red);
+            background: rgba(255, 51, 102, 0.1);
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty state placeholder */
+        .empty-placeholder {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 5rem 2rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: var(--glass-glow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .empty-placeholder i {
+            font-size: 3rem;
+            background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transform: translateY(150%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 200;
+        }
+
+        .toast.active {
+            transform: translateY(0);
+        }
+
+        .toast-icon {
+            font-size: 1.25rem;
+        }
+
+        .toast-success .toast-icon { color: var(--neon-green); }
+        .toast-error .toast-icon { color: var(--neon-red); }
+
+        /* Scroller */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-title-section">
+                <div class="logo-glow">
+                    <i class="fa-solid fa-flask"></i>
+                </div>
+                <div>
+                    <h1>SMC Strategy Backtester</h1>
+                    <p>Smart Money Concepts 策略多週期高頻回測系統</p>
+                </div>
+            </div>
+            <a href="/" class="nav-back">
+                <i class="fa-solid fa-arrow-left"></i> 回到儀表板
+            </a>
+        </header>
+
+        <!-- Main Workspace -->
+        <div class="workspace">
+            <!-- Left Side: Controls -->
+            <div class="control-panel">
+                <div class="panel-title">
+                    <i class="fa-solid fa-sliders"></i> 回測參數設定
+                </div>
+                <form id="backtest-form" onsubmit="event.preventDefault();">
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label for="backtest-strategy">交易策略</label>
+                        <select id="backtest-strategy" required>
+                            <option value="smc">SMC (Smart Money Concepts) 策略</option>
+                            <option value="ema_cross">EMA 均線黃金死亡交叉</option>
+                            <option value="bollinger_bands">Bollinger Bands 布林通道逆勢</option>
+                            <option value="kd_indicator">KD stochastic 隨機指標轉折</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label for="backtest-code">股票代碼</label>
+                        <select id="backtest-code" required>
+                            <option value="">加載中...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row" style="margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label for="backtest-start">開始日期</label>
+                            <input type="date" id="backtest-start" required value="2026-01-01">
+                        </div>
+                        <div class="form-group">
+                            <label for="backtest-end">結束日期</label>
+                            <input type="date" id="backtest-end" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label for="backtest-balance">初始資金 (元)</label>
+                        <input type="number" id="backtest-balance" required min="1000" step="10000" value="1001000">
+                    </div>
+
+                    <div class="form-row" style="margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label for="backtest-risk">單筆風險比率 (%)</label>
+                            <input type="number" id="backtest-risk" required min="0.1" max="10" step="0.1" value="1.0">
+                        </div>
+                        <div class="form-group">
+                            <label for="backtest-rr">盈虧比 R:R</label>
+                            <input type="number" id="backtest-rr" required min="0.5" max="10" step="0.1" value="2.0">
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label for="backtest-htf-window">HTF 日K回顧窗口 (天)</label>
+                        <input type="number" id="backtest-htf-window" required min="5" max="60" value="20">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label for="backtest-entry-mode">FVG 進場模式</label>
+                        <select id="backtest-entry-mode">
+                            <option value="fvg_top">FVG 上沿進場</option>
+                            <option value="fvg_mid">FVG 中點進場</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row" style="margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label for="backtest-direction">交易方向</label>
+                            <select id="backtest-direction">
+                                <option value="long">僅做多 (Long Only)</option>
+                                <option value="both">雙向交易 (Long & Short)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="backtest-holding">持倉模式</label>
+                            <select id="backtest-holding">
+                                <option value="day_trade">當日強平 (Day Trade)</option>
+                                <option value="swing">跨日波段 (Swing Trade)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row" style="margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label for="backtest-sl-buffer">止損緩衝 (ATR 倍數)</label>
+                            <input type="number" id="backtest-sl-buffer" required min="0.0" max="2.0" step="0.1" value="0.2">
+                        </div>
+                        <div class="form-group">
+                            <label for="backtest-timeframe">回測分K週期</label>
+                            <select id="backtest-timeframe">
+                                <option value="5k">5分鐘K (5m)</option>
+                                <option value="15k">15分鐘K (15m)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label for="backtest-fee-discount">手續費折讓</label>
+                        <input type="number" id="backtest-fee-discount" required min="0.0" max="1.0" step="0.05" value="0.60">
+                    </div>
+
+                    <button type="submit" id="run-btn" class="btn btn-primary" style="width: 100%;">
+                        <i class="fa-solid fa-play"></i> 執行策略回測
+                    </button>
+                </form>
+            </div>
+
+            <!-- Right Side: Results -->
+            <div id="results-placeholder" class="empty-placeholder">
+                <i class="fa-solid fa-chart-line"></i>
+                <h3>尚未執行回測</h3>
+                <p>請於左側設定參數，並點擊「執行策略回測」按鈕來查看結果。</p>
+            </div>
+
+            <div id="results-wrapper" class="results-section" style="display: none;">
+                <!-- Stats Row -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">總收益率</span>
+                        <span id="stat-return" class="stat-val">0.00%</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">勝率</span>
+                        <span id="stat-winrate" class="stat-val">0.00%</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">交易次數</span>
+                        <span id="stat-trades" class="stat-val">0</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">最大回撤</span>
+                        <span id="stat-maxdd" class="stat-val down">0.00%</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">獲利因子</span>
+                        <span id="stat-pf" class="stat-val">1.00</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">夏普值 (Sharpe)</span>
+                        <span id="stat-sharpe" class="stat-val" style="color: var(--neon-purple);">0.00</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">期末總資產</span>
+                        <span id="stat-final" class="stat-val">0</span>
+                    </div>
+                </div>
+
+                <!-- Chart Card -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h2>資產淨值曲線 (Equity Curve)</h2>
+                        <span class="sync-badge" id="chart-legend" style="color: var(--neon-blue); border-color: rgba(0, 242, 254, 0.2);">Equity</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="equity-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Trades Log Card -->
+                <div class="log-card">
+                    <div class="log-header">
+                        <h2>詳細交易日誌</h2>
+                        <span class="sync-badge" id="log-count">0 筆記錄</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>編號</th>
+                                    <th>進場時間</th>
+                                    <th>進場價</th>
+                                    <th>出場時間</th>
+                                    <th>出場價</th>
+                                    <th>股數</th>
+                                    <th>手續費稅金</th>
+                                    <th>單筆損益</th>
+                                    <th>報酬率</th>
+                                    <th>狀態</th>
+                                </tr>
+                            </thead>
+                            <tbody id="log-body">
+                                <!-- Dynamic Render -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <div id="toast-icon-container" class="toast-icon"></div>
+        <div id="toast-message">提示訊息</div>
+    </div>
+
+    <script>
+        let chartInstance = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // 自動設定結束日期為今天
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('backtest-end').value = today;
+
+            // 獲取願望清單
+            fetchWishlist();
+
+            // 綁定表單提交
+            document.getElementById('backtest-form').addEventListener('submit', runBacktest);
+        });
+
+        // Toast Helper
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const iconContainer = document.getElementById('toast-icon-container');
+            const messageContainer = document.getElementById('toast-message');
+
+            toast.className = `toast toast-${type} active`;
+            messageContainer.textContent = message;
+            
+            if (type === 'success') {
+                iconContainer.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+            } else {
+                iconContainer.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i>';
+            }
+
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3500);
+        }
+
+        // 獲取追蹤股票清單填充下拉選單
+        async function fetchWishlist() {
+            try {
+                const res = await fetch('/api/wishlist');
+                const wishlist = await res.json();
+                const select = document.getElementById('backtest-code');
+                
+                if (wishlist.length === 0) {
+                    select.innerHTML = '<option value="">請先在首頁新增股票</option>';
+                    return;
+                }
+
+                select.innerHTML = '';
+                wishlist.forEach(stock => {
+                    const opt = document.createElement('option');
+                    opt.value = stock.code;
+                    opt.textContent = `${stock.code} - ${stock.name}`;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                console.error(err);
+                showToast("獲取願望清單失敗，請檢查伺服器連接", "error");
+            }
+        }
+
+        // 執行回測
+        async function runBacktest() {
+            const btn = document.getElementById('run-btn');
+            const origHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> 回測運算中...';
+
+            const payload = {
+                code: document.getElementById('backtest-code').value,
+                start_date: document.getElementById('backtest-start').value,
+                end_date: document.getElementById('backtest-end').value,
+                initial_balance: parseFloat(document.getElementById('backtest-balance').value),
+                risk_pct: parseFloat(document.getElementById('backtest-risk').value) / 100,
+                rr_ratio: parseFloat(document.getElementById('backtest-rr').value),
+                htf_window: parseInt(document.getElementById('backtest-htf-window').value),
+                entry_mode: document.getElementById('backtest-entry-mode').value,
+                sl_buffer_pct: parseFloat(document.getElementById('backtest-sl-buffer').value),
+                fee_discount: parseFloat(document.getElementById('backtest-fee-discount').value),
+                enable_short: document.getElementById('backtest-direction').value === 'both',
+                holding_mode: document.getElementById('backtest-holding').value,
+                ltf_timeframe: document.getElementById('backtest-timeframe').value,
+                strategy_name: document.getElementById('backtest-strategy').value
+            };
+
+            try {
+                const res = await fetch('/api/backtest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    throw new Error(data.detail || "執行回測失敗");
+                }
+
+                if (data.success) {
+                    showToast("回測完成！", "success");
+                    renderResults(data);
+                } else {
+                    throw new Error(data.error || "回測未成功執行");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast(err.message, "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHTML;
+            }
+        }
+
+        // 渲染回測結果
+        function renderResults(data) {
+            // 隱藏預設 placeholder，顯示結果包裝器
+            document.getElementById('results-placeholder').style.display = 'none';
+            document.getElementById('results-wrapper').style.display = 'flex';
+
+            const summary = data.summary;
+            
+            // 1. 填寫統計卡片
+            const returnEl = document.getElementById('stat-return');
+            returnEl.textContent = `${summary.total_return_pct >= 0 ? '+' : ''}${summary.total_return_pct.toFixed(2)}%`;
+            returnEl.className = `stat-val ${summary.total_return_pct >= 0 ? 'up' : 'down'}`;
+
+            const wrEl = document.getElementById('stat-winrate');
+            wrEl.textContent = `${summary.win_rate_pct.toFixed(1)}%`;
+            wrEl.className = `stat-val ${summary.win_rate_pct >= 50 ? 'up' : ''}`;
+
+            document.getElementById('stat-trades').textContent = summary.total_trades;
+            document.getElementById('stat-maxdd').textContent = `${summary.max_drawdown_pct.toFixed(2)}%`;
+            document.getElementById('stat-pf').textContent = summary.profit_factor.toFixed(2);
+            document.getElementById('stat-sharpe').textContent = summary.sharpe_ratio.toFixed(2);
+            document.getElementById('stat-final').textContent = summary.final_balance.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
+
+            // 2. 渲染 Chart.js 曲線
+            renderChart(data.equity_curve);
+
+            // 3. 渲染交易日誌表格
+            renderTradesLog(data.trades);
+        }
+
+        // 繪製資產曲線
+        function renderChart(curveData) {
+            const ctx = document.getElementById('equity-chart').getContext('2d');
+            
+            const labels = curveData.map(d => d.time);
+            const values = curveData.map(d => d.value);
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            // 建立漸層填充
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(0, 242, 254, 0.25)');
+            gradient.addColorStop(1, 'rgba(79, 172, 254, 0.00)');
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '帳戶總淨值',
+                        data: values,
+                        borderColor: '#00f2fe',
+                        borderWidth: 2,
+                        pointRadius: curveData.length > 50 ? 0 : 3,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#00f2fe',
+                        pointBorderColor: '#fff',
+                        fill: true,
+                        backgroundColor: gradient,
+                        tension: 0.15
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.03)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: {
+                                    family: 'Outfit',
+                                    size: 10
+                                }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.03)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: {
+                                    family: 'Outfit',
+                                    size: 10
+                                },
+                                callback: function(value) {
+                                    return value.toLocaleString('zh-TW');
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: '#161a25',
+                            titleColor: '#f1f5f9',
+                            bodyColor: '#f1f5f9',
+                            borderColor: 'rgba(255,255,255,0.08)',
+                            borderWidth: 1,
+                            titleFont: {
+                                family: 'Outfit'
+                            },
+                            bodyFont: {
+                                family: 'Outfit'
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    return `淨值: ${context.parsed.y.toLocaleString('zh-TW', { maximumFractionDigits: 2 })} 元`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 渲染交易日誌
+        function renderTradesLog(trades) {
+            const body = document.getElementById('log-body');
+            const countBadge = document.getElementById('log-count');
+            countBadge.textContent = `${trades.length} 筆記錄`;
+
+            if (trades.length === 0) {
+                body.innerHTML = `
+                    <tr>
+                        <td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 3rem 0;">
+                            此回測區間內無符合 SMC 進場條件的交易。
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            body.innerHTML = '';
+            trades.forEach(trade => {
+                const tr = document.createElement('tr');
+                const isWin = trade.pnl > 0;
+                const statusBadge = isWin 
+                    ? `<span class="badge-type profit">PROFIT</span>` 
+                    : `<span class="badge-type loss">LOSS</span>`;
+                
+                const pnlClass = isWin ? 'up' : 'down';
+                const sign = isWin ? '+' : '';
+
+                // 時間顯示精簡 (隱藏年份以利排版，只顯示月-日 時:分)
+                const formatTime = (ts) => ts ? ts.substring(5, 16) : '-';
+
+                tr.innerHTML = `
+                    <td>${trade.trade_no}</td>
+                    <td style="font-family: monospace;">${formatTime(trade.entry_time)}</td>
+                    <td style="font-weight: 600;">${trade.entry_price.toFixed(2)}</td>
+                    <td style="font-family: monospace;">${formatTime(trade.exit_time)}</td>
+                    <td style="font-weight: 600;">${trade.exit_price.toFixed(2)}</td>
+                    <td style="font-family: monospace;">${trade.shares.toLocaleString()}</td>
+                    <td style="color: var(--text-secondary); font-family: monospace;">${trade.fee_tax.toLocaleString('zh-TW', {maximumFractionDigits:0})}</td>
+                    <td style="font-weight: 700; color: var(--neon-${isWin ? 'green' : 'red'}); text-shadow: 0 0 8px rgba(${isWin ? '0, 230, 118' : '255, 51, 102'}, 0.15);">
+                        ${sign}${trade.pnl.toLocaleString('zh-TW', {maximumFractionDigits:1})}
+                    </td>
+                    <td style="font-weight: 600; color: var(--neon-${isWin ? 'green' : 'red'});">
+                        ${sign}${trade.pnl_pct.toFixed(2)}%
+                    </td>
+                    <td>${statusBadge}</td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
