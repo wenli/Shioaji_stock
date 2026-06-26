@@ -38,21 +38,25 @@ async def lifespan(app: FastAPI):
     
     # 2. Login to Shioaji
     api = dsd.get_shioaji_client()
+    app.state.api = api
     if api:
-        app.state.api = api
         logger.info("Shioaji API logged in successfully during startup.")
-        
-        # 3. Start Scheduler
-        sm.start_scheduler(api)
     else:
-        logger.error("FastAPI failed to log in to Shioaji. Background scheduler did not start.")
+        logger.warning("FastAPI failed to log in to Shioaji. Operating in offline or Yahoo Finance mode.")
+        
+    # 3. Start Scheduler (allow starting even if api is None, since Yahoo mode does not need Shioaji)
+    sm.start_scheduler(api)
         
     yield
     # 4. Cleanup
     sm.stop_scheduler()
     if hasattr(app.state, 'api') and app.state.api:
         logger.info("Logging out from Shioaji API during shutdown...")
-        app.state.api.logout()
+        try:
+            app.state.api.logout()
+        except Exception as e:
+            logger.warning(f"Error logging out from Shioaji API: {e}")
+
 
 app = FastAPI(title="Shioaji Stock Wish List Updater", lifespan=lifespan)
 
@@ -115,14 +119,46 @@ async def get_index():
         return html_file.read_text(encoding="utf-8")
     return "<h1>Frontend index.html not found. Place it in frontend/index.html</h1>"
 
+class SourceConfigRequest(BaseModel):
+    source: str
+
 @app.get("/api/status")
 def get_status():
-    """Returns the system status and login status."""
+    """Returns the system status, login status and active source."""
     is_online = hasattr(app.state, 'api') and app.state.api is not None
+    active_source = dsd.get_active_source()
+    
+    # In Yahoo mode, system is Online if it has network, regardless of Shioaji login
+    system_status = "Online"
+    if active_source == "shioaji" and not is_online:
+        system_status = "Offline"
+        
     return {
-        "status": "Online" if is_online else "Offline",
-        "api_login": is_online
+        "status": system_status,
+        "api_login": is_online,
+        "active_source": active_source
     }
+
+@app.get("/api/config/source")
+def get_source_config():
+    """Gets the active data source configuration."""
+    return {"active_source": dsd.get_active_source()}
+
+@app.post("/api/config/source")
+def update_source_config(req: SourceConfigRequest):
+    """Updates the active data source configuration and initializes the target database."""
+    if req.source not in ["shioaji", "yahoo"]:
+        raise HTTPException(status_code=400, detail="Invalid source. Must be 'shioaji' or 'yahoo'.")
+    
+    dsd.set_active_source(req.source)
+    try:
+        dsd.init_db()
+    except Exception as e:
+        logger.error(f"Failed to initialize database for source {req.source}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to initialize database: {e}")
+        
+    return {"active_source": req.source}
+
 
 @app.get("/api/wishlist")
 def get_wishlist():
@@ -131,11 +167,12 @@ def get_wishlist():
     if not wish_stocks:
         return []
 
+    active_source = dsd.get_active_source()
     is_online = hasattr(app.state, 'api') and app.state.api is not None
     snapshots_dict = {}
 
     # Try to fetch live quotes (snapshots)
-    if is_online:
+    if active_source == "shioaji" and is_online:
         try:
             api = app.state.api
             contracts = []
@@ -171,6 +208,7 @@ def get_wishlist():
         last_1k = dsd.get_last_ts("stock1k", code)
         last_5k = dsd.get_last_ts("stock5k", code)
         last_1d = dsd.get_last_ts("stock1d", code)
+
         
         # Merge live snapshot info
         snap = snapshots_dict.get(code, {})
@@ -221,32 +259,65 @@ def add_stock(req: WishlistRequest, background_tasks: BackgroundTasks):
     if not code:
         raise HTTPException(status_code=400, detail="Stock code cannot be empty.")
 
+    active_source = dsd.get_active_source()
     is_online = hasattr(app.state, 'api') and app.state.api is not None
-    if not is_online:
-        raise HTTPException(status_code=503, detail="Shioaji API is not logged in. Operation unavailable.")
 
-    api = app.state.api
-    
-    # 1. Lookup stock contract in Shioaji
-    try:
-        contract = api.Contracts.Stocks[code]
-        if not contract:
-            raise HTTPException(status_code=400, detail=f"Stock code {code} does not exist in Taiwan market.")
-    except Exception as e:
-        logger.error(f"Error checking stock code {code}: {e}")
-        raise HTTPException(status_code=400, detail=f"Stock code {code} lookup failed. Invalid code.")
+    if active_source == "shioaji":
+        if not is_online:
+            raise HTTPException(status_code=503, detail="Shioaji API is not logged in. Operation unavailable.")
 
-    # 2. Add stock to Database wishlist
-    stock_name = contract.name or "Unknown"
-    success = dsd.add_to_wish_list(code, stock_name)
-    if not success:
-         raise HTTPException(status_code=500, detail="Failed to write stock to database wish_list.")
+        api = app.state.api
+        # 1. Lookup stock contract in Shioaji
+        try:
+            contract = api.Contracts.Stocks[code]
+            if not contract:
+                raise HTTPException(status_code=400, detail=f"Stock code {code} does not exist in Taiwan market.")
+        except Exception as e:
+            logger.error(f"Error checking stock code {code}: {e}")
+            raise HTTPException(status_code=400, detail=f"Stock code {code} lookup failed. Invalid code.")
 
-    # 3. Trigger initial sync in the background
-    dsd.sync_tracker.set_status(code, "pending")
-    background_tasks.add_task(dsd.sync_to_latest, api, code)
-    
-    return {"message": f"Successfully added {code} ({stock_name}) to wish list. Background sync initiated."}
+        # 2. Add stock to Database wishlist
+        stock_name = contract.name or "Unknown"
+        success = dsd.add_to_wish_list(code, stock_name)
+        if not success:
+             raise HTTPException(status_code=500, detail="Failed to write stock to database wish_list.")
+
+        # 3. Trigger initial sync in the background
+        dsd.sync_tracker.set_status(code, "pending")
+        background_tasks.add_task(dsd.sync_to_latest, api, code)
+        return {"message": f"Successfully added {code} ({stock_name}) to wish list. Background sync initiated."}
+
+    else:
+        # Yahoo mode - check yfinance ticker availability
+        import yfinance as yf
+        import time
+        tickers_to_try = [f"{code}.TW", f"{code}.TWO"]
+        selected_ticker = None
+        stock_name = f"Yahoo {code}"
+        
+        for ticker in tickers_to_try:
+            try:
+                df_test = yf.download(tickers=ticker, period="1d", progress=False)
+                if df_test is not None and not df_test.empty:
+                    selected_ticker = ticker
+                    break
+            except Exception:
+                pass
+            time.sleep(0.5)
+
+        if not selected_ticker:
+            raise HTTPException(status_code=400, detail=f"Stock code {code} not found on Yahoo Finance (.TW or .TWO)")
+
+        # Add to wish list
+        success = dsd.add_to_wish_list(code, stock_name)
+        if not success:
+             raise HTTPException(status_code=500, detail="Failed to write stock to database wish_list.")
+
+        # Trigger sync
+        dsd.sync_tracker.set_status(code, "pending")
+        background_tasks.add_task(dsd.sync_to_latest, None, code)
+        return {"message": f"Successfully added {code} ({stock_name}) to wish list. Background sync initiated."}
+
 
 @app.delete("/api/wishlist/{code}")
 def delete_stock(code: str):
@@ -260,13 +331,16 @@ def delete_stock(code: str):
 @app.post("/api/sync")
 def trigger_all_sync(background_tasks: BackgroundTasks):
     """Manually triggers background sync for all stocks in the wish list."""
+    active_source = dsd.get_active_source()
     is_online = hasattr(app.state, 'api') and app.state.api is not None
-    if not is_online:
+    
+    if active_source == "shioaji" and not is_online:
         raise HTTPException(status_code=503, detail="Shioaji API is not logged in.")
         
-    api = app.state.api
+    api = getattr(app.state, 'api', None)
     background_tasks.add_task(sm.sync_all_wish_stocks, api)
     return {"message": "Manual sync triggered in the background for all active stocks."}
+
 
 @app.get("/api/settings/yahoo")
 def get_yahoo_settings():
@@ -298,11 +372,13 @@ def update_yahoo_settings(req: YahooSettingsRequest):
 @app.post("/api/import_yahoo")
 def import_yahoo_stock(background_tasks: BackgroundTasks):
     """匯入 Yahoo 成交量排行前 YAHOO_IMPORT_LIMIT 且股價 <= YAHOO_IMPORT_MAX_PRICE 的股票"""
+    active_source = dsd.get_active_source()
     is_online = hasattr(app.state, 'api') and app.state.api is not None
-    if not is_online:
+    
+    if active_source == "shioaji" and not is_online:
         raise HTTPException(status_code=503, detail="Shioaji API is not logged in. Operation unavailable.")
         
-    api = app.state.api
+    api = getattr(app.state, 'api', None)
     
     try:
         url = "https://tw.stock.yahoo.com/rank/volume"
@@ -368,22 +444,34 @@ def import_yahoo_stock(background_tasks: BackgroundTasks):
                 
                 if price is not None and price <= YAHOO_IMPORT_MAX_PRICE:
                     if code_raw not in existing_codes:
-                        # 驗證該股票在 Shioaji 中是否存在合約
-                        try:
-                            contract = api.Contracts.Stocks[code_raw]
-                            if contract:
-                                real_name = contract.name or stock_name
-                                success = dsd.add_to_wish_list(code_raw, real_name)
-                                if success:
-                                    # 觸發背景同步
-                                    dsd.sync_tracker.set_status(code_raw, "pending")
-                                    background_tasks.add_task(dsd.sync_to_latest, api, code_raw)
-                                    
-                                    imported_stocks.append(f"{real_name}({code_raw})")
-                                    added_count += 1
-                                    existing_codes.add(code_raw)
-                        except Exception as e:
-                            logger.error(f"Failed to verify stock {code_raw} via Shioaji: {e}")
+                        if active_source == "shioaji":
+                            # 驗證該股票在 Shioaji 中是否存在合約
+                            try:
+                                contract = api.Contracts.Stocks[code_raw]
+                                if contract:
+                                    real_name = contract.name or stock_name
+                                    success = dsd.add_to_wish_list(code_raw, real_name)
+                                    if success:
+                                        # 觸發背景同步
+                                        dsd.sync_tracker.set_status(code_raw, "pending")
+                                        background_tasks.add_task(dsd.sync_to_latest, api, code_raw)
+                                        
+                                        imported_stocks.append(f"{real_name}({code_raw})")
+                                        added_count += 1
+                                        existing_codes.add(code_raw)
+                            except Exception as e:
+                                logger.error(f"Failed to verify stock {code_raw} via Shioaji: {e}")
+                        else:
+                            # Yahoo mode - 直接加入並背景同步
+                            # 因是在 Yahoo 熱門榜，必定存在，不另外做慢速的 yfinance 請求
+                            success = dsd.add_to_wish_list(code_raw, stock_name)
+                            if success:
+                                dsd.sync_tracker.set_status(code_raw, "pending")
+                                background_tasks.add_task(dsd.sync_to_latest, None, code_raw)
+                                
+                                imported_stocks.append(f"{stock_name}({code_raw})")
+                                added_count += 1
+                                existing_codes.add(code_raw)
             except Exception as e:
                 logger.error(f"Error processing Yahoo stock row: {e}")
                 continue
@@ -557,10 +645,11 @@ def run_backtest_endpoint(req: BacktestRequest):
     finally:
         conn.close()
 
-    # 檢查 Shioaji 在線狀態以決定是否能下載
+    # 檢查 Shioaji 在線狀態以決定是否能下載，且只在 active_source 為 shioaji 時才自動補齊
+    active_source = dsd.get_active_source()
     is_online = hasattr(app.state, 'api') and app.state.api is not None
     
-    if is_online:
+    if is_online and active_source == "shioaji":
         api = app.state.api
         try:
             # 我們需要回測起點往前推 3 天，確保 5分K 有足夠歷史資料計算 PDL (前一日最低點)
@@ -586,6 +675,7 @@ def run_backtest_endpoint(req: BacktestRequest):
         except Exception as e:
             logger.error(f"Failed to automatically sync backtest data: {e}")
             # 即使失敗，後面還是會嘗試使用本地已有資料進行回測
+
             
     # 執行回測
     try:
