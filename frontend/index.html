@@ -478,6 +478,38 @@
             box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
         }
 
+        /* Data Source Toggle Group */
+        .source-toggle-group {
+            display: flex;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .source-btn {
+            padding: 0.4rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: inherit;
+        }
+
+        .source-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .source-btn.active {
+            background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(0, 242, 254, 0.35);
+        }
     </style>
 </head>
 <body>
@@ -489,15 +521,23 @@
                     <i class="fa-solid fa-chart-line-up"></i>
                 </div>
                 <div>
-                    <h1>Stock Wish List Updater</h1>
-                    <p>台灣股票願望清單多週期自動下載更新器</p>
+                    <h1 id="header-title">Stock Wish List Updater</h1>
+                    <p id="header-desc">台灣股票願望清單多週期自動下載更新器</p>
                 </div>
             </div>
-            <div class="api-badge">
-                <div id="status-dot" class="badge-dot"></div>
-                <span id="status-text">Checking API...</span>
+            <div style="display: flex; align-items: center; gap: 1.25rem;">
+                <!-- Data Source Toggle Button Group -->
+                <div class="source-toggle-group">
+                    <button class="source-btn" id="source-btn-shioaji" onclick="switchSource('shioaji')">Shioaji API</button>
+                    <button class="source-btn" id="source-btn-yahoo" onclick="switchSource('yahoo')">Yahoo Finance</button>
+                </div>
+                <div class="api-badge">
+                    <div id="status-dot" class="badge-dot"></div>
+                    <span id="status-text">Checking API...</span>
+                </div>
             </div>
         </header>
+
 
         <!-- Action Bar -->
         <div class="action-bar">
@@ -588,6 +628,48 @@
     <!-- Script Section -->
     <script>
         let pollingTimer = null;
+        let activeSource = 'shioaji';
+
+        function updateToggleUI(source) {
+            const shioajiBtn = document.getElementById('source-btn-shioaji');
+            const yahooBtn = document.getElementById('source-btn-yahoo');
+            
+            if (source === 'shioaji') {
+                shioajiBtn.classList.add('active');
+                yahooBtn.classList.remove('active');
+                
+                document.getElementById('header-title').textContent = 'Stock Wish List Updater';
+                document.getElementById('header-desc').textContent = '台灣股票願望清單多週期自動下載更新器 (Shioaji)';
+            } else {
+                shioajiBtn.classList.remove('active');
+                yahooBtn.classList.add('active');
+                
+                document.getElementById('header-title').textContent = 'Yahoo Stock Wish List';
+                document.getElementById('header-desc').textContent = '台灣股票願望清單多週期自動下載更新器 (Yahoo)';
+            }
+        }
+
+        async function switchSource(source) {
+            try {
+                const res = await fetch('/api/config/source', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source: source })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(`已成功切換至 ${source === 'shioaji' ? 'Shioaji API' : 'Yahoo Finance'} 來源！`, 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 800);
+                } else {
+                    showToast(data.detail || "切換來源失敗", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("與伺服器通訊錯誤", "error");
+            }
+        }
 
         // Fetch Status & Wishlist on mount
         window.addEventListener('DOMContentLoaded', () => {
@@ -633,12 +715,15 @@
                 const dot = document.getElementById('status-dot');
                 const text = document.getElementById('status-text');
 
+                activeSource = data.active_source || 'shioaji';
+                updateToggleUI(activeSource);
+
                 if (data.status === 'Online') {
                     dot.className = 'badge-dot online';
-                    text.textContent = 'Shioaji: Connected';
+                    text.textContent = activeSource === 'shioaji' ? 'Shioaji: Connected' : 'Yahoo Finance: Active';
                 } else {
                     dot.className = 'badge-dot offline';
-                    text.textContent = 'Shioaji: Offline/Unlogged';
+                    text.textContent = activeSource === 'shioaji' ? 'Shioaji: Offline/Unlogged' : 'Yahoo Finance: Offline';
                 }
             } catch (err) {
                 console.error(err);
@@ -646,6 +731,7 @@
                 document.getElementById('status-text').textContent = 'Server Disconnected';
             }
         }
+
 
         // Check and toggle smart polling based on stock sync statuses
         function checkAndPoll(stocks) {
@@ -697,7 +783,7 @@
                 body.innerHTML = `
                     <tr>
                         <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 3rem 0;">
-                            目前沒有追蹤任何股票。請在上方輸入代碼新增。
+                            目前沒有追蹤 any 股票。請在上方輸入代碼新增。
                         </td>
                     </tr>
                 `;
@@ -723,7 +809,10 @@
                     : '0.00 (0.00%)';
 
                 // Truncate timestamp for cleaner display
-                const cleanTime = (t) => t === 'No Data' ? t : t.substring(5, 16);
+                const cleanTime = (t, is1k = false) => {
+                    if (is1k && activeSource === 'yahoo') return '-';
+                    return t === 'No Data' ? t : t.substring(5, 16);
+                };
 
                 // Render sync status badge
                 let statusHTML = '';
@@ -754,7 +843,7 @@
                     <td>
                         <span class="change-rate ${changeClass}">${changeText}</span>
                     </td>
-                    <td><span class="sync-badge">${cleanTime(stock.last_1k)}</span></td>
+                    <td><span class="sync-badge">${cleanTime(stock.last_1k, true)}</span></td>
                     <td><span class="sync-badge">${cleanTime(stock.last_5k)}</span></td>
                     <td><span class="sync-badge">${cleanTime(stock.last_1d)}</span></td>
                     <td>${statusHTML}</td>
@@ -764,6 +853,7 @@
                         </button>
                     </td>
                 `;
+
 
                 // Row click opens chart in a new tab
                 tr.addEventListener('click', (e) => {
