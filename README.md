@@ -36,6 +36,12 @@
    * 提供一鍵式按鈕，自動抓取 Yahoo 股市最新成交量排行且股價小於門檻的股票。
    * Web 介面整合「Yahoo 匯入設定」設定面板，可調整股價上限 (`YAHOO_IMPORT_MAX_PRICE`) 與抓取數量限制 (`YAHOO_IMPORT_LIMIT`)，並持久化寫入 `.env` 檔案中。
 
+7. **🔄 雙資料來源與獨立資料庫切換 (Yahoo Finance / Shioaji API)**
+   * **前端 UI 即時切換**：在網頁頂部新增 Glassmorphic 霓虹開關，隨時切換資料庫（`Shioaji.db` ↔ `Y.db`）與下載來源，兩邊的願望清單與行情數據完全獨立隔離。
+   * **Yahoo 獨立下載與台北時區對齊**：Yahoo 模式下不下載 1m 分K，而是直接獨立拉取 `5m`、`15m`、`30m`、`60m`、`1d` 的 K 線資料，並自動轉換為 `Asia/Taipei` (UTC+8) 寫入。
+   * **防封鎖與上限保護**：每次請求間隔 **1 秒** 防止 IP 遭 Yahoo 封鎖；針對短週期 (5m/15m/30m) 自動實施 **55 天安全下載上限**，避免觸發 Yahoo API 的 60 天硬性天數限制。
+
+
 7. **🧪 多策略量化回測系統 (Multi-Strategy Backtester)**
    * **多種交易策略支援**：支援在 Web 介面自由切換執行以下四大策略：
      1. **SMC 策略 (Smart Money Concepts)**：利用日線判斷 BOS 與折溢價區，並在分K進行 Sweep、ChoCH 與 FVG 限價單成交判定。
@@ -69,7 +75,9 @@ c:\Intel\Shioaji_stock\
 │   ├── test_backtest.py     # 回測引擎底層雙向與波段機制驗證腳本
 │   └── api_test_multi.py    # 自動化測試 FastAPI 與多策略 API 整合驗證腳本
 ├── .env                     # 環境變數與 Shioaji 金鑰
-├── Shioaji.db               # SQLite 資料庫 (自動建立)
+├── config.json              # 儲存當前啟用的 active_source (shioaji/yahoo)
+├── Shioaji.db               # Shioaji 模式 SQLite 資料庫 (自動建立)
+├── Y.db                     # Yahoo 模式 SQLite 資料庫 (自動建立)
 ├── requirements.txt         # 專案套件依賴
 └── README.md                # 本說明文件
 ```
@@ -104,6 +112,10 @@ DEFAULT_START_DAYS=360
 # Yahoo 熱門股匯入設定
 YAHOO_IMPORT_MAX_PRICE=150  # 股價上限
 YAHOO_IMPORT_LIMIT=50       # 排行抓取數量
+
+# Yahoo 首次同步回溯天數 (天)
+YAHOO_60K_BACKTRACK_DAYS=365   # 60分K預設回溯 1 年
+YAHOO_1D_BACKTRACK_DAYS=1825   # 日K預設回溯 5 年
 ```
 
 ---
@@ -160,6 +172,8 @@ python app/main.py
 | `GET` | `/api/settings/yahoo` | 獲取當前記憶體中的 Yahoo 熱門股匯入設定值 |
 | `POST` | `/api/settings/yahoo` | 更新 Yahoo 熱門股匯入設定值並寫入持久化至 `.env` |
 | `POST` | `/api/import_yahoo` | 爬取 Yahoo 成交量排行並匯入 wish list 進行背景同步 |
+| `GET` | `/api/config/source` | 獲取當前啟用的資料來源與資料庫狀態 |
+| `POST` | `/api/config/source` | 切換資料來源與資料庫 (shioaji/yahoo) 並初始化 DB |
 | `POST` | `/api/backtest` | **執行指定個股之特定量化策略（SMC/EMA/BB/KD）歷史回測** |
 | `GET` | `/api/kbars/{code}` | 讀取單檔股票特定週期歷史數據，提供看盤圖表繪製 |
 | `GET` | `/chart/{code}` | 渲染獨立的 2x2 四宮格 K 線量能看盤頁面 |
@@ -231,4 +245,10 @@ python app/main.py
    * 引入了類型強制轉化（`float()` & `int()`）防護，解決 NumPy 數值型別（如 `numpy.float64` 等）無法被 FastAPI / JSON 引擎原生序列化的問題。
 8. **新增獨立系統使用與操作手冊 (User Guide)**：
    * 於 [docs/user_guide.md](docs/user_guide.md) 以繁體中文撰寫完整操作指南，涵蓋清單管理、定時同步、2x2 四宮格看盤、量化回測與歷史複盤操作，並科普 SMC 交易策略基礎概念，並於 `README.md` 首頁加入導航連結。
-
+9. **🔄 雙資料來源（Yahoo Finance / Shioaji API）與 `Y.db` 支援**：
+   * 於主面盤右上角新增 Glassmorphic 霓虹切換開關，雙資料庫獨立隔離。
+   * Yahoo 模式下採取獨立週期 K 線下載，不下載 1m 分K，每次請求加入 1 秒防封鎖延遲。
+   * 針對 5m/15m/30m 短週期加入 55 天下載安全上限，避免觸發 Yahoo API 60 天天數限制報錯。
+10. **🧪 SMC 回測面盤新增 60K (60m) 週期支援與資料污染防護**：
+    * 在回測時間週期下拉選單中成功加入 `60分鐘K (60m)` 週期的量化回測。
+    * 修復跨來源自動同步數據的污染漏洞，在 Yahoo 模式下執行回測會自動跳過 Shioaji 資料同步補齊。
