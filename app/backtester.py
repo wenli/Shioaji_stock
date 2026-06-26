@@ -168,6 +168,7 @@ def run_backtest(
     sweep_type = None
     sweep_low = 0.0
     sweep_high = 0.0
+    sweep_idx = None
     choch_detected = False
     
     trades_log = []
@@ -412,45 +413,131 @@ def run_backtest(
                     prev_10_lows = df_backtest_ltf.iloc[idx-10:idx]['low'].min()
                     ref_low = min(pdl, prev_10_lows) if pdl > 0 else prev_10_lows
                     if low_ltf < ref_low and close_ltf > ref_low:
-                        sweep_type, sweep_low, choch_detected = "bullish", low_ltf, False
+                        sweep_type, sweep_low, sweep_idx, choch_detected = "bullish", low_ltf, idx, False
                         
                     if sweep_type == "bullish" and not choch_detected:
                         if close_ltf > df_backtest_ltf.iloc[idx-5:idx]['high'].max():
                             choch_detected = True
                             
                     if choch_detected and sweep_type == "bullish":
-                        k3_low, k1_high = low_ltf, df_backtest_ltf.iloc[idx-2]['high']
-                        if k3_low > k1_high:
-                            p_entry = k1_high if entry_mode == "fvg_top" else (k1_high + k3_low) / 2
+                        if entry_mode in ["fvg_top", "fvg_mid"]:
+                            k3_low, k1_high = low_ltf, df_backtest_ltf.iloc[idx-2]['high']
+                            if k3_low > k1_high:
+                                p_entry = k1_high if entry_mode == "fvg_top" else (k1_high + k3_low) / 2
+                                p_sl = max(sweep_low - (sl_buffer_pct * atr_ltf), 0.1)
+                                if p_sl >= p_entry: p_sl = p_entry - 0.5
+                                p_tp = p_entry + (p_entry - p_sl) * rr_ratio
+                                
+                                pending_order = {"type": "LONG", "entry": p_entry, "sl": p_sl, "tp": p_tp, "date": current_date_str}
+                                sweep_type, sweep_idx, choch_detected = None, None, False
+                                logger.info(f"[{current_time}] SMC Long order placed (FVG).")
+                                
+                        elif entry_mode == "ob_open":
+                            search_df = df_backtest_ltf.iloc[sweep_idx:idx+1]
+                            bearish_candles = search_df[search_df['close'] < search_df['open']]
+                            if not bearish_candles.empty:
+                                ob_candle = bearish_candles.loc[bearish_candles['low'].idxmin()]
+                                p_entry = ob_candle['open']
+                            else:
+                                ob_candle = search_df.loc[search_df['low'].idxmin()]
+                                p_entry = ob_candle['low']
+                                
                             p_sl = max(sweep_low - (sl_buffer_pct * atr_ltf), 0.1)
                             if p_sl >= p_entry: p_sl = p_entry - 0.5
                             p_tp = p_entry + (p_entry - p_sl) * rr_ratio
                             
                             pending_order = {"type": "LONG", "entry": p_entry, "sl": p_sl, "tp": p_tp, "date": current_date_str}
-                            sweep_type, choch_detected = None, False
-                            logger.info(f"[{current_time}] SMC Long order placed.")
+                            sweep_type, sweep_idx, choch_detected = None, None, False
+                            logger.info(f"[{current_time}] SMC Long order placed (OB). Entry: {p_entry}")
+                            
+                        elif entry_mode.startswith("ote_"):
+                            ratio = 0.705
+                            try:
+                                parts = entry_mode.split("_")
+                                if len(parts) > 1:
+                                    val_str = parts[1]
+                                    if len(val_str) == 3:
+                                        ratio = float(val_str) / 1000.0
+                                    elif len(val_str) == 2:
+                                        ratio = float(val_str) / 100.0
+                            except Exception:
+                                ratio = 0.705
+                                
+                            search_df = df_backtest_ltf.iloc[sweep_idx:idx+1]
+                            choch_high = search_df['high'].max()
+                            p_entry = choch_high - (choch_high - sweep_low) * ratio
+                            p_sl = max(sweep_low - (sl_buffer_pct * atr_ltf), 0.1)
+                            if p_sl >= p_entry: p_sl = p_entry - 0.5
+                            p_tp = p_entry + (p_entry - p_sl) * rr_ratio
+                            
+                            pending_order = {"type": "LONG", "entry": p_entry, "sl": p_sl, "tp": p_tp, "date": current_date_str}
+                            sweep_type, sweep_idx, choch_detected = None, None, False
+                            logger.info(f"[{current_time}] SMC Long order placed (OTE {ratio}). Entry: {p_entry}")
                             
                 elif can_trade_short:
                     prev_10_highs = df_backtest_ltf.iloc[idx-10:idx]['high'].max()
                     ref_high = max(pdh, prev_10_highs) if pdh > 0 else prev_10_highs
                     if high_ltf > ref_high and close_ltf < ref_high:
-                        sweep_type, sweep_high, choch_detected = "bearish", high_ltf, False
+                        sweep_type, sweep_high, sweep_idx, choch_detected = "bearish", high_ltf, idx, False
                         
                     if sweep_type == "bearish" and not choch_detected:
                         if close_ltf < df_backtest_ltf.iloc[idx-5:idx]['low'].min():
                             choch_detected = True
                             
                     if choch_detected and sweep_type == "bearish":
-                        k3_high, k1_low = high_ltf, df_backtest_ltf.iloc[idx-2]['low']
-                        if k3_high < k1_low:
-                            p_entry = k1_low if entry_mode == "fvg_top" else (k1_low + k3_high) / 2
+                        if entry_mode in ["fvg_top", "fvg_mid"]:
+                            k3_high, k1_low = high_ltf, df_backtest_ltf.iloc[idx-2]['low']
+                            if k3_high < k1_low:
+                                p_entry = k1_low if entry_mode == "fvg_top" else (k1_low + k3_high) / 2
+                                p_sl = sweep_high + (sl_buffer_pct * atr_ltf)
+                                if p_sl <= p_entry: p_sl = p_entry + 0.5
+                                p_tp = p_entry - (p_sl - p_entry) * rr_ratio
+                                
+                                pending_order = {"type": "SHORT", "entry": p_entry, "sl": p_sl, "tp": p_tp, "date": current_date_str}
+                                sweep_type, sweep_idx, choch_detected = None, None, False
+                                logger.info(f"[{current_time}] SMC Short order placed (FVG).")
+                                
+                        elif entry_mode == "ob_open":
+                            search_df = df_backtest_ltf.iloc[sweep_idx:idx+1]
+                            bullish_candles = search_df[search_df['close'] > search_df['open']]
+                            if not bullish_candles.empty:
+                                ob_candle = bullish_candles.loc[bullish_candles['high'].idxmax()]
+                                p_entry = ob_candle['open']
+                            else:
+                                ob_candle = search_df.loc[search_df['high'].idxmax()]
+                                p_entry = ob_candle['high']
+                                
                             p_sl = sweep_high + (sl_buffer_pct * atr_ltf)
                             if p_sl <= p_entry: p_sl = p_entry + 0.5
                             p_tp = p_entry - (p_sl - p_entry) * rr_ratio
                             
                             pending_order = {"type": "SHORT", "entry": p_entry, "sl": p_sl, "tp": p_tp, "date": current_date_str}
-                            sweep_type, choch_detected = None, False
-                            logger.info(f"[{current_time}] SMC Short order placed.")
+                            sweep_type, sweep_idx, choch_detected = None, None, False
+                            logger.info(f"[{current_time}] SMC Short order placed (OB). Entry: {p_entry}")
+                            
+                        elif entry_mode.startswith("ote_"):
+                            ratio = 0.705
+                            try:
+                                parts = entry_mode.split("_")
+                                if len(parts) > 1:
+                                    val_str = parts[1]
+                                    if len(val_str) == 3:
+                                        ratio = float(val_str) / 1000.0
+                                    elif len(val_str) == 2:
+                                        ratio = float(val_str) / 100.0
+                            except Exception:
+                                ratio = 0.705
+                                
+                            search_df = df_backtest_ltf.iloc[sweep_idx:idx+1]
+                            choch_low = search_df['low'].min()
+                            p_entry = choch_low + (sweep_high - choch_low) * ratio
+                            p_sl = sweep_high + (sl_buffer_pct * atr_ltf)
+                            if p_sl <= p_entry: p_sl = p_entry + 0.5
+                            p_tp = p_entry - (p_sl - p_entry) * rr_ratio
+                            
+                            pending_order = {"type": "SHORT", "entry": p_entry, "sl": p_sl, "tp": p_tp, "date": current_date_str}
+                            sweep_type, sweep_idx, choch_detected = None, None, False
+                            logger.info(f"[{current_time}] SMC Short order placed (OTE {ratio}). Entry: {p_entry}")
 
             # --- 策略 B: EMA 雙均線交叉策略 ---
             elif s_name == "ema_cross":

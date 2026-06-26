@@ -393,6 +393,16 @@
             border-bottom: none;
         }
 
+        #log-body tr {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        #log-body tr:hover td {
+            background-color: var(--hover-blue) !important;
+            color: #fff;
+        }
+
         tr:hover td {
             background-color: rgba(255, 255, 255, 0.02);
         }
@@ -577,11 +587,15 @@
                         <input type="number" id="backtest-htf-window" required min="5" max="60" value="20">
                     </div>
 
-                    <div class="form-group" style="margin-bottom: 1rem;">
-                        <label for="backtest-entry-mode">FVG 進場模式</label>
+                    <div class="form-group" id="entry-mode-group" style="margin-bottom: 1rem;">
+                        <label for="backtest-entry-mode">SMC 進場模式</label>
                         <select id="backtest-entry-mode">
                             <option value="fvg_top">FVG 上沿進場</option>
                             <option value="fvg_mid">FVG 中點進場</option>
+                            <option value="ob_open">OB (訂單塊) 開盤價進場</option>
+                            <option value="ote_705">OTE 70.5% (經典回撤)</option>
+                            <option value="ote_618">OTE 61.8% 回撤</option>
+                            <option value="ote_786">OTE 78.6% 回撤</option>
                         </select>
                     </div>
 
@@ -726,6 +740,21 @@
 
             // 獲取願望清單
             fetchWishlist();
+
+            // 監聽交易策略選單動態顯示/隱藏 SMC 進場模式
+            const strategySelect = document.getElementById('backtest-strategy');
+            const entryModeGroup = document.getElementById('entry-mode-group');
+
+            function toggleEntryModeVisibility() {
+                if (strategySelect.value === 'smc') {
+                    entryModeGroup.style.display = 'flex';
+                } else {
+                    entryModeGroup.style.display = 'none';
+                }
+            }
+
+            strategySelect.addEventListener('change', toggleEntryModeVisibility);
+            toggleEntryModeVisibility(); // 初始化調用
 
             // 綁定表單提交
             document.getElementById('backtest-form').addEventListener('submit', runBacktest);
@@ -1000,6 +1029,15 @@
                     </td>
                     <td>${statusBadge}</td>
                 `;
+
+                // Link to chart page on click
+                tr.addEventListener('click', () => {
+                    const code = document.getElementById('backtest-code').value;
+                    const tf = document.getElementById('backtest-timeframe').value;
+                    const url = `/chart/${code}?entryTime=${encodeURIComponent(trade.entry_time)}&exitTime=${encodeURIComponent(trade.exit_time)}&entryPrice=${trade.entry_price}&exitPrice=${trade.exit_price}&tf=${tf}`;
+                    window.open(url, '_blank');
+                });
+
                 body.appendChild(tr);
             });
         }
