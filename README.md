@@ -4,6 +4,8 @@
 
 系統內建強大的**多策略量化回測引擎 (Backtester)**，支援雙向交易（做多/做空）與跨日持倉，搭配高質感的磨砂玻璃 (Glassmorphic) 暗黑霓虹風 Web 控制面盤，並整合 Lightweight-Charts 歷史 K 線互動看盤頁面。
 
+📖 **詳細使用與操作說明請參閱：[系統使用與操作手冊 (User Guide)](docs/user_guide.md)**
+
 ---
 
 ## 🌟 特色功能
@@ -209,10 +211,24 @@ python app/main.py
 
 ## 🛠️ 近期更新與優化記錄
 
-1. **修正當日漲跌幅 % 數顯示放大 100 倍的 Bug**：
-   * **問題**：先前由於對 Shioaji API Snapshot 欄位理解有誤，在取得 `change_rate` 後重複乘了 100，導致原先 `-4.01%` 的漲跌幅在 Dashboard 表格中顯示為 `-401.00%`。
-   * **修正**：移除了主入口 [main.py](file:///c:/Intel/Shioaji_stock/app/main.py#L209) 中對該欄位重複乘 100 的乘數，已恢復為正確的百分比顯示。
-2. **優化回測初始資金預設值**：
-   * 為了支援台股多空雙邊回測時，券商融券保證金與借券相關規定的本金門檻要求，將回測初始資金預設值調高至 **`1,001,000` 元**。
-3. **優化回測引擎的 JSON 序列化機制**：
-   * 由於 NumPy 的數值型別（如 `numpy.float64` 等）無法被 FastAPI / JSON 引擎原生序列化，回測引擎特別引入了類型強制轉化（`float()` & `int()`）防護，徹底解決了回測完成後前端拋出 500 伺服器錯誤的問題。
+1. **SMC 策略進場模式擴展 (OB 開盤價 & OTE 斐波那契回撤)**：
+   * **後端實作**：於 [backtester.py](file:///c:/Intel/Shioaji_stock/app/backtester.py) 實作 Order Block (OB 開盤價) 進場與 Optimal Trade Entry (OTE 70.5% / 79% / 62% 斐波那契回撤) 進場模式，並於無陰/陽K線時，以 High/Low 作為回退支撐阻力進場。
+   * **前端介面**：於 [backtest.html](file:///c:/Intel/Shioaji_stock/frontend/backtest.html) 提供對應的下拉選單，並在選擇非 SMC 策略時動態隱藏此選單。
+2. **多週期 K 線 API 錨點支援與過早資料修復**：
+   * 在 [main.py](file:///c:/Intel/Shioaji_stock/app/main.py) 的 `/api/kbars/multi/{code}` 路由新增 `anchor_time` 參數。若帶入此參數，系統會以該時間戳為中心，往前抓取 800 根、往後抓取 200 根 K 線，解決複盤時「過早資料無法顯示」的 Bug。
+3. **多週期圖表同步與時間戳就近對齊**：
+   * 在 [chart.html](file:///c:/Intel/Shioaji_stock/frontend/chart.html) 中，使 5M, 15M, 60M, 日K 圖表同步顯示買賣點 (arrowUp / arrowDown) 與橘色軌跡虛線。
+   * 實作 `findNearestBarIndex` 時間對齊演算法，自動以就近原則在不同週期圖表上定位交易標記。
+   * 自動為 5M, 15M, 60M 進行局部時間軸焦點聚焦 (Zoom)，並讓日K圖表保持全局趨勢視野。
+4. **SMC 區間切換與 Bug 修復**：
+   * 重構全域共享變數（`tradeLineSeriesList`, `tradeSMCSeriesList` 等）為各週期獨立的字典結構，避免圖表異步繪製時搶佔引用。
+   * 修復在複盤模式下切換關閉「SMC 區間」開關時，SMC 著色區間依然殘留顯示，且重複切換會導致軌跡虛線重複疊加的 Bug。
+5. **修正當日漲跌幅 % 數顯示放大 100 倍的 Bug**：
+   * 移除了主入口 [main.py](file:///c:/Intel/Shioaji_stock/app/main.py#L209) 中對該欄位重複乘 100 的乘數，已恢復為正確的百分比顯示。
+6. **優化回測初始資金預設值**：
+   * 為了支援台股多空雙邊回測時，券商融券保證金與借券相關規定本金要求，將回測初始資金預設值調高至 **`1,001,000` 元**。
+7. **優化回測引擎的 JSON 序列化機制**：
+   * 引入了類型強制轉化（`float()` & `int()`）防護，解決 NumPy 數值型別（如 `numpy.float64` 等）無法被 FastAPI / JSON 引擎原生序列化的問題。
+8. **新增獨立系統使用與操作手冊 (User Guide)**：
+   * 於 [docs/user_guide.md](docs/user_guide.md) 以繁體中文撰寫完整操作指南，涵蓋清單管理、定時同步、2x2 四宮格看盤、量化回測與歷史複盤操作，並科普 SMC 交易策略基礎概念，並於 `README.md` 首頁加入導航連結。
+
