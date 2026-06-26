@@ -232,6 +232,83 @@
                 flex-shrink: 0;
             }
         }
+
+        /* SMC Control Group styling */
+        .smc-control-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+
+        .smc-control-container:hover {
+            border-color: rgba(0, 242, 254, 0.3);
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.08);
+        }
+
+        .smc-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+        }
+
+        /* Toggle Switch Custom */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 38px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .3s;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: var(--text-primary);
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+
+        input:checked + .slider {
+            background-color: rgba(0, 242, 254, 0.2);
+            border-color: var(--neon-blue);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(18px);
+            background-color: var(--neon-blue);
+            box-shadow: 0 0 8px var(--neon-blue);
+        }
     </style>
 </head>
 <body>
@@ -247,9 +324,20 @@
                     <p id="stock-subtitle">多週期量價共振 K 線圖</p>
                 </div>
             </div>
-            <a href="/" class="back-btn">
-                <i class="fa-solid fa-house"></i> 回首頁
-            </a>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="smc-control-container">
+                    <span class="smc-label">
+                        <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--neon-blue); margin-right: 6px;"></i>SMC 區間
+                    </span>
+                    <label class="switch">
+                        <input type="checkbox" id="smc-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <a href="/" class="back-btn">
+                    <i class="fa-solid fa-house"></i> 回首頁
+                </a>
+            </div>
         </header>
 
         <!-- Charts Grid -->
@@ -301,6 +389,23 @@
         const volumeSeriesList = {};
         const chartKeys = ['5k', '15k', '60k', '1d'];
 
+        let showSMC = true;
+        const smcSeriesList = { '5k': [], '15k': [], '60k': [], '1d': [] };
+        const currentKbarsData = { '5k': [], '15k': [], '60k': [], '1d': [] };
+
+        // Parse URL params for backtest review
+        const urlParams = new URLSearchParams(window.location.search);
+        let tradeEntryTime = urlParams.get('entryTime');
+        let tradeExitTime = urlParams.get('exitTime');
+        let tradeEntryPrice = urlParams.get('entryPrice') ? parseFloat(urlParams.get('entryPrice')) : null;
+        let tradeExitPrice = urlParams.get('exitPrice') ? parseFloat(urlParams.get('exitPrice')) : null;
+        let tradeTf = urlParams.get('tf'); // '5k' or '15k'
+        let isReviewMode = !!tradeEntryTime;
+
+        // Store reference to trade setup dashed lines
+        const tradeLineSeriesList = { '5k': [], '15k': [], '60k': [], '1d': [] };
+        const tradeSMCSeriesList = { '5k': [], '15k': [], '60k': [], '1d': [] };
+
         // [標準轉換] 將台北 Naive 時間字串，轉換為該時刻在台北 (UTC+8) 的標準 Unix 時間戳（秒）
         function getCorrectedUnixTimestamp(timeStr) {
             if (timeStr.length <= 10) {
@@ -338,6 +443,447 @@
             }
         }
 
+        // Calculate SMC Indicators: FVG & OB
+        function calculateSMCIndicators(kbars) {
+            if (kbars.length < 3) {
+                return { fvgs: [], obs: [] };
+            }
+
+            const fvgs = [];
+            const obs = [];
+
+            // 1. Calculate Fair Value Gaps (FVG)
+            for (let i = 2; i < kbars.length; i++) {
+                const prev2 = kbars[i - 2];
+                const prev1 = kbars[i - 1];
+                const curr = kbars[i];
+
+                // Bullish FVG (Gap between Bar i-2 High and Bar i Low)
+                if (prev2.high < curr.low) {
+                    fvgs.push({
+                        type: 'bullish',
+                        top: curr.low,
+                        bottom: prev2.high,
+                        startTime: prev1.time,
+                        mitigated: false
+                    });
+                }
+                // Bearish FVG (Gap between Bar i-2 Low and Bar i High)
+                else if (prev2.low > curr.high) {
+                    fvgs.push({
+                        type: 'bearish',
+                        top: prev2.low,
+                        bottom: curr.high,
+                        startTime: prev1.time,
+                        mitigated: false
+                    });
+                }
+            }
+
+            // FVG Mitigation check
+            for (let i = 0; i < fvgs.length; i++) {
+                const fvg = fvgs[i];
+                const startIndex = kbars.findIndex(k => k.time === fvg.startTime);
+                if (startIndex === -1) continue;
+
+                for (let j = startIndex + 1; j < kbars.length; j++) {
+                    const checkBar = kbars[j];
+                    if (fvg.type === 'bullish') {
+                        if (checkBar.low < fvg.bottom) {
+                            fvg.mitigated = true;
+                            break;
+                        }
+                    } else {
+                        if (checkBar.high > fvg.top) {
+                            fvg.mitigated = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 2. Calculate Order Blocks (OB)
+            const bodySizes = kbars.map(k => Math.abs(k.close - k.open));
+            
+            for (let i = 1; i < kbars.length; i++) {
+                const startIdx = Math.max(0, i - 20);
+                const slicedBodies = bodySizes.slice(startIdx, i);
+                const avgBody = slicedBodies.reduce((sum, val) => sum + val, 0) / (slicedBodies.length || 1);
+
+                const curr = kbars[i];
+                const prev = kbars[i - 1];
+                const currBody = Math.abs(curr.close - curr.open);
+
+                // Check for momentum expansion (curr candle > 1.5x average body)
+                if (currBody > 1.5 * avgBody) {
+                    // Bullish OB: strong green candle, previous was red
+                    if (curr.close > curr.open && prev.close < prev.open) {
+                        obs.push({
+                            type: 'bullish',
+                            top: prev.high,
+                            bottom: prev.low,
+                            startTime: prev.time,
+                            mitigated: false
+                        });
+                    }
+                    // Bearish OB: strong red candle, previous was green
+                    else if (curr.close < curr.open && prev.close > prev.open) {
+                        obs.push({
+                            type: 'bearish',
+                            top: prev.high,
+                            bottom: prev.low,
+                            startTime: prev.time,
+                            mitigated: false
+                        });
+                    }
+                }
+            }
+
+            // OB Mitigation check
+            for (let i = 0; i < obs.length; i++) {
+                const ob = obs[i];
+                const startIndex = kbars.findIndex(k => k.time === ob.startTime);
+                if (startIndex === -1) continue;
+
+                for (let j = startIndex + 1; j < kbars.length; j++) {
+                    const checkBar = kbars[j];
+                    if (ob.type === 'bullish') {
+                        if (checkBar.low < ob.bottom) {
+                            ob.mitigated = true;
+                            break;
+                        }
+                    } else {
+                        if (checkBar.high > ob.top) {
+                            ob.mitigated = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Filter out mitigated and limit to the latest 3 of each category
+            const unmitigatedBullishFVGs = fvgs.filter(f => f.type === 'bullish' && !f.mitigated).slice(-3);
+            const unmitigatedBearishFVGs = fvgs.filter(f => f.type === 'bearish' && !f.mitigated).slice(-3);
+            const unmitigatedBullishOBs = obs.filter(o => o.type === 'bullish' && !o.mitigated).slice(-3);
+            const unmitigatedBearishOBs = obs.filter(o => o.type === 'bearish' && !o.mitigated).slice(-3);
+
+            return {
+                fvgs: [...unmitigatedBullishFVGs, ...unmitigatedBearishFVGs],
+                obs: [...unmitigatedBullishOBs, ...unmitigatedBearishOBs]
+            };
+        }
+
+        // Clear existing SMC BaselineSeries from the chart
+        function clearSMCIndicators(key) {
+            const list = smcSeriesList[key] || [];
+            const chart = charts[key];
+            if (chart) {
+                list.forEach(s => {
+                    try {
+                        chart.removeSeries(s);
+                    } catch (e) {
+                        // Silent catch if series is already removed
+                    }
+                });
+            }
+            smcSeriesList[key] = [];
+
+            // Clean up backtest trade lines and trade SMC zones as well
+            if (chart) {
+                const tLineList = tradeLineSeriesList[key] || [];
+                tLineList.forEach(s => {
+                    try {
+                        chart.removeSeries(s);
+                    } catch (e) {}
+                });
+                tradeLineSeriesList[key] = [];
+
+                const tSMCList = tradeSMCSeriesList[key] || [];
+                tSMCList.forEach(s => {
+                    try {
+                        chart.removeSeries(s);
+                    } catch (e) {}
+                });
+                tradeSMCSeriesList[key] = [];
+            }
+        }
+
+        // Helper to find the nearest bar index (where bar.time <= targetTime)
+        function findNearestBarIndex(kbars, targetTime) {
+            let bestIdx = -1;
+            for (let i = 0; i < kbars.length; i++) {
+                if (kbars[i].time <= targetTime) {
+                    bestIdx = i;
+                } else {
+                    break;
+                }
+            }
+            return bestIdx;
+        }
+
+        // Render trade setup markers and dashed line for backtest review
+        function drawTradeSetup(key, kbars) {
+            clearSMCIndicators(key);
+
+            if (!tradeEntryTime || !tradeExitTime || kbars.length === 0) return;
+
+            const chart = charts[key];
+            const candleSeries = candleSeriesList[key];
+            if (!chart || !candleSeries) return;
+
+            // 1. Convert entry and exit times to Unix timestamps
+            const tEntry = getCorrectedUnixTimestamp(tradeEntryTime);
+            const tExit = getCorrectedUnixTimestamp(tradeExitTime);
+
+            // 2. Find indices in kbars data using nearest matching logic
+            const entryIdx = findNearestBarIndex(kbars, tEntry);
+            const exitIdx = findNearestBarIndex(kbars, tExit);
+
+            // 3. Out-of-bounds safety check
+            if (entryIdx === -1) {
+                return;
+            }
+
+            let finalExitIdx = exitIdx;
+            let wideSpanZoom = false;
+
+            if (exitIdx === -1 || exitIdx < entryIdx) {
+                finalExitIdx = kbars.length - 1;
+                wideSpanZoom = true;
+            }
+
+            const rayEnd = kbars[finalExitIdx].time;
+
+            // 4. Time-travel SMC Indicator Calculation
+            if (showSMC) {
+                const entryBarTime = kbars[entryIdx].time;
+                const sliceKbars = kbars.filter(k => k.time <= entryBarTime);
+                const { fvgs, obs } = calculateSMCIndicators(sliceKbars);
+
+                // Draw historical FVGs (Inception -> exitTime)
+                fvgs.forEach(fvg => {
+                    const isBull = fvg.type === 'bullish';
+                    const fillColor = isBull ? 'rgba(0, 230, 118, 0.08)' : 'rgba(255, 51, 102, 0.08)';
+                    const lineColor = isBull ? 'rgba(0, 230, 118, 0.25)' : 'rgba(255, 51, 102, 0.25)';
+
+                    const baseVal = isBull ? fvg.top : fvg.bottom;
+                    const fillVal = isBull ? fvg.bottom : fvg.top;
+
+                    const sFill = chart.addBaselineSeries({
+                        baseValue: { type: 'price', price: baseVal },
+                        topFillColor1: isBull ? 'transparent' : fillColor,
+                        topFillColor2: isBull ? 'transparent' : fillColor,
+                        topLineColor: isBull ? 'transparent' : lineColor,
+                        bottomFillColor1: isBull ? fillColor : 'transparent',
+                        bottomFillColor2: isBull ? fillColor : 'transparent',
+                        bottomLineColor: isBull ? lineColor : 'transparent',
+                        lineWidth: 1,
+                        lineStyle: LightweightCharts.LineStyle.Dashed,
+                        crosshairMarkerVisible: false,
+                        lastValueVisible: false,
+                        priceLineVisible: false
+                    });
+
+                    sFill.setData([
+                        { time: fvg.startTime, value: fillVal },
+                        { time: rayEnd, value: fillVal }
+                    ]);
+
+                    tradeSMCSeriesList[key].push(sFill);
+                });
+
+                // Draw historical OBs (Inception -> exitTime)
+                obs.forEach(ob => {
+                    const isBull = ob.type === 'bullish';
+                    const fillColor = isBull ? 'rgba(0, 230, 118, 0.12)' : 'rgba(255, 51, 102, 0.12)';
+                    const lineColor = isBull ? 'rgba(0, 230, 118, 0.45)' : 'rgba(255, 51, 102, 0.45)';
+
+                    const baseVal = isBull ? ob.top : ob.bottom;
+                    const fillVal = isBull ? ob.bottom : ob.top;
+
+                    const sFill = chart.addBaselineSeries({
+                        baseValue: { type: 'price', price: baseVal },
+                        topFillColor1: isBull ? 'transparent' : fillColor,
+                        topFillColor2: isBull ? 'transparent' : fillColor,
+                        topLineColor: isBull ? 'transparent' : lineColor,
+                        bottomFillColor1: isBull ? fillColor : 'transparent',
+                        bottomFillColor2: isBull ? fillColor : 'transparent',
+                        bottomLineColor: isBull ? lineColor : 'transparent',
+                        lineWidth: 1.5,
+                        lineStyle: LightweightCharts.LineStyle.Solid,
+                        crosshairMarkerVisible: false,
+                        lastValueVisible: false,
+                        priceLineVisible: false
+                    });
+
+                    sFill.setData([
+                        { time: ob.startTime, value: fillVal },
+                        { time: rayEnd, value: fillVal }
+                    ]);
+
+                    tradeSMCSeriesList[key].push(sFill);
+                });
+            }
+
+            // 5. Create markers (arrowUp for Buy, arrowDown for Sell)
+            const markers = [];
+            const entryBarTime = kbars[entryIdx].time;
+            
+            // Add entry marker
+            markers.push({
+                time: entryBarTime,
+                position: 'belowBar',
+                color: '#00e676', // Neon Green
+                shape: 'arrowUp',
+                text: `Buy @ ${tradeEntryPrice.toFixed(2)}`
+            });
+
+            // Add exit marker if it's within bounds
+            if (!wideSpanZoom && exitIdx !== -1) {
+                const exitBarTime = kbars[exitIdx].time;
+                markers.push({
+                    time: exitBarTime,
+                    position: 'aboveBar',
+                    color: '#ff3366', // Neon Red
+                    shape: 'arrowDown',
+                    text: `Sell @ ${tradeExitPrice.toFixed(2)}`
+                });
+            }
+
+            // Set markers on the candlestick series
+            candleSeries.setMarkers(markers);
+
+            // 6. Draw orange dashed track line (only if exit is also within bounds)
+            if (!wideSpanZoom && tradeEntryPrice !== null && tradeExitPrice !== null) {
+                const entryBarTime = kbars[entryIdx].time;
+                const exitBarTime = kbars[exitIdx].time;
+                const lineSeries = chart.addLineSeries({
+                    color: '#ff9800', // Orange
+                    lineWidth: 2,
+                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                    crosshairMarkerVisible: false,
+                    lastValueVisible: false,
+                    priceLineVisible: false
+                });
+
+                lineSeries.setData([
+                    { time: entryBarTime, value: tradeEntryPrice },
+                    { time: exitBarTime, value: tradeExitPrice }
+                ]);
+
+                tradeLineSeriesList[key].push(lineSeries);
+            }
+
+            // 7. Viewport Zooming (Daily chart 1d will skip zooming to keep global context)
+            if (key !== '1d') {
+                setTimeout(() => {
+                    try {
+                        if (wideSpanZoom) {
+                            // Focus on entry point (10 bars before, 50 bars after)
+                            const startIdx = Math.max(0, entryIdx - 10);
+                            const endIdx = Math.min(kbars.length - 1, entryIdx + 50);
+                            chart.timeScale().setVisibleRange({
+                                from: kbars[startIdx].time,
+                                to: kbars[endIdx].time
+                            });
+                        } else {
+                            // Focus on full trade range with adaptive margin
+                            const margin = key === '60k' ? 10 : 25;
+                            const startIdx = Math.max(0, entryIdx - margin);
+                            const endIdx = Math.min(kbars.length - 1, exitIdx + margin);
+                            chart.timeScale().setVisibleRange({
+                                from: kbars[startIdx].time,
+                                to: kbars[endIdx].time
+                            });
+                        }
+                    } catch (err) {
+                        console.error("Failed to zoom chart viewport: ", err);
+                    }
+                }, 50);
+            }
+        }
+
+        // Render SMC Indicators (OB, FVG) as shaded channels
+        function drawSMCIndicators(key, kbars) {
+            // First clear old series
+            clearSMCIndicators(key);
+
+            // If toggle is off, or no data, do not draw
+            if (!showSMC || !kbars || kbars.length === 0) return;
+
+            const chart = charts[key];
+            if (!chart) return;
+
+            // Retrieve unmitigated FVG & OB
+            const { fvgs, obs } = calculateSMCIndicators(kbars);
+            const lastBar = kbars[kbars.length - 1];
+            const rayEnd = lastBar.time;
+
+            // Draw FVGs (Dashed border, lighter fill)
+            fvgs.forEach(fvg => {
+                const isBull = fvg.type === 'bullish';
+                const fillColor = isBull ? 'rgba(0, 230, 118, 0.08)' : 'rgba(255, 51, 102, 0.08)';
+                const lineColor = isBull ? 'rgba(0, 230, 118, 0.25)' : 'rgba(255, 51, 102, 0.25)';
+
+                const baseVal = isBull ? fvg.top : fvg.bottom;
+                const fillVal = isBull ? fvg.bottom : fvg.top;
+
+                const sFill = chart.addBaselineSeries({
+                    baseValue: { type: 'price', price: baseVal },
+                    topFillColor1: isBull ? 'transparent' : fillColor,
+                    topFillColor2: isBull ? 'transparent' : fillColor,
+                    topLineColor: isBull ? 'transparent' : lineColor,
+                    bottomFillColor1: isBull ? fillColor : 'transparent',
+                    bottomFillColor2: isBull ? fillColor : 'transparent',
+                    bottomLineColor: isBull ? lineColor : 'transparent',
+                    lineWidth: 1,
+                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                    crosshairMarkerVisible: false,
+                    lastValueVisible: false,
+                    priceLineVisible: false
+                });
+
+                sFill.setData([
+                    { time: fvg.startTime, value: fillVal },
+                    { time: rayEnd, value: fillVal }
+                ]);
+
+                smcSeriesList[key].push(sFill);
+            });
+
+            // Draw OBs (Solid border, slightly stronger fill)
+            obs.forEach(ob => {
+                const isBull = ob.type === 'bullish';
+                const fillColor = isBull ? 'rgba(0, 230, 118, 0.12)' : 'rgba(255, 51, 102, 0.12)';
+                const lineColor = isBull ? 'rgba(0, 230, 118, 0.45)' : 'rgba(255, 51, 102, 0.45)';
+
+                const baseVal = isBull ? ob.top : ob.bottom;
+                const fillVal = isBull ? ob.bottom : ob.top;
+
+                const sFill = chart.addBaselineSeries({
+                    baseValue: { type: 'price', price: baseVal },
+                    topFillColor1: isBull ? 'transparent' : fillColor,
+                    topFillColor2: isBull ? 'transparent' : fillColor,
+                    topLineColor: isBull ? 'transparent' : lineColor,
+                    bottomFillColor1: isBull ? fillColor : 'transparent',
+                    bottomFillColor2: isBull ? fillColor : 'transparent',
+                    bottomLineColor: isBull ? lineColor : 'transparent',
+                    lineWidth: 1.5,
+                    lineStyle: LightweightCharts.LineStyle.Solid,
+                    crosshairMarkerVisible: false,
+                    lastValueVisible: false,
+                    priceLineVisible: false
+                });
+
+                sFill.setData([
+                    { time: ob.startTime, value: fillVal },
+                    { time: rayEnd, value: fillVal }
+                ]);
+
+                smcSeriesList[key].push(sFill);
+            });
+        }
+
         // Toast Helper
         function showToast(message) {
             const toast = document.getElementById('toast');
@@ -371,6 +917,25 @@
 
             // 3. 載入並繪製 K 線量能數據
             loadChartData(code);
+
+            // 4. 監聽 SMC 指標開關
+            const smcToggle = document.getElementById('smc-toggle');
+            if (smcToggle) {
+                smcToggle.addEventListener('change', (e) => {
+                    showSMC = e.target.checked;
+                    chartKeys.forEach(key => {
+                        if (isReviewMode) {
+                            drawTradeSetup(key, currentKbarsData[key]);
+                        } else {
+                            if (showSMC) {
+                                drawSMCIndicators(key, currentKbarsData[key]);
+                            } else {
+                                clearSMCIndicators(key);
+                            }
+                        }
+                    });
+                });
+            }
         });
 
         // Fetch Stock Contract Info
@@ -511,7 +1076,23 @@
         // Load K-line data from one unified API call into all 4 charts
         async function loadChartData(code) {
             try {
-                const res = await fetch(`/api/kbars/multi/${code}?limit=1000`);
+                // If the loaded stock code doesn't match the URL, clear backtest parameters
+                const pathParts = window.location.pathname.split('/');
+                const urlCode = pathParts[pathParts.length - 1].toUpperCase();
+                if (code !== urlCode) {
+                    tradeEntryTime = null;
+                    tradeExitTime = null;
+                    tradeEntryPrice = null;
+                    tradeExitPrice = null;
+                    tradeTf = null;
+                    isReviewMode = false;
+                }
+
+                let url = `/api/kbars/multi/${code}?limit=1000`;
+                if (isReviewMode && tradeEntryTime) {
+                    url += `&anchor_time=${encodeURIComponent(tradeEntryTime)}`;
+                }
+                const res = await fetch(url);
                 if (!res.ok) throw new Error("API failed");
                 const resData = await res.json();
                 
@@ -549,9 +1130,24 @@
                         if (volumeSeriesList[key]) {
                             volumeSeriesList[key].setData(formattedVolume);
                         }
+
+                        // Cache formatted candles data
+                        currentKbarsData[key] = formattedCandles;
+
+                        // Conditional SMC rendering based on Review Mode
+                        if (isReviewMode) {
+                            // In Review Mode: render trade indicators and historical SMC zones on all panels
+                            drawTradeSetup(key, formattedCandles);
+                        } else {
+                            // Normal Mode: render standard SMC overlays
+                            drawSMCIndicators(key, formattedCandles);
+                        }
                         
                         if (charts[key]) {
-                            charts[key].timeScale().fitContent();
+                            // Only fitContent if it's NOT in review mode, or if it is the 1d chart (to keep global context)
+                            if (!isReviewMode || key === '1d') {
+                                charts[key].timeScale().fitContent();
+                            }
                         }
                         
                         // Set initial header text to last candle data

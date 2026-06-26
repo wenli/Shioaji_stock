@@ -440,26 +440,55 @@ def get_kbars(code: str, timeframe: str = "1k", limit: int = 500):
         conn.close()
 
 @app.get("/api/kbars/multi/{code}")
-def get_multi_kbars(code: str, limit: int = 1000):
-    """Gets historical K-bars for multiple timeframes (5k, 15k, 60k, 1d) in one call."""
+def get_multi_kbars(code: str, limit: int = 1000, anchor_time: str = None):
+    """Gets historical K-bars for multiple timeframes (5k, 15k, 60k, 1d) in one call, optionally centered at anchor_time."""
     timeframes = ["5k", "15k", "60k", "1d"]
     conn = dsd.get_db_connection()
     result = {}
+    
+    limit_before = int(limit * 0.8)
+    limit_after = limit - limit_before
+    
     try:
         for tf in timeframes:
             table_name = f"stock{tf}"
-            query = f"""
-                SELECT ts as time, open, high, low, close, volume
-                FROM (
-                    SELECT ts, open, high, low, close, volume
+            if anchor_time:
+                # 取得 anchor_time 之前的數據 (時間 DESC，需反轉為 ASC)
+                query_before = f"""
+                    SELECT ts as time, open, high, low, close, volume
                     FROM {table_name}
-                    WHERE code = ?
+                    WHERE code = ? AND ts <= ?
                     ORDER BY ts DESC
                     LIMIT ?
-                )
-                ORDER BY ts ASC
-            """
-            rows = conn.execute(query, (code, limit)).fetchall()
+                """
+                rows_before = conn.execute(query_before, (code, anchor_time, limit_before)).fetchall()
+                rows_before = list(reversed(rows_before))
+                
+                # 取得 anchor_time 之後的數據 (時間 ASC)
+                query_after = f"""
+                    SELECT ts as time, open, high, low, close, volume
+                    FROM {table_name}
+                    WHERE code = ? AND ts > ?
+                    ORDER BY ts ASC
+                    LIMIT ?
+                """
+                rows_after = conn.execute(query_after, (code, anchor_time, limit_after)).fetchall()
+                
+                rows = rows_before + rows_after
+            else:
+                query = f"""
+                    SELECT ts as time, open, high, low, close, volume
+                    FROM (
+                        SELECT ts, open, high, low, close, volume
+                        FROM {table_name}
+                        WHERE code = ?
+                        ORDER BY ts DESC
+                        LIMIT ?
+                    )
+                    ORDER BY ts ASC
+                """
+                rows = conn.execute(query, (code, limit)).fetchall()
+                
             result[tf] = [dict(row) for row in rows]
             
         return {
@@ -468,7 +497,7 @@ def get_multi_kbars(code: str, limit: int = 1000):
             "data": result
         }
     except Exception as e:
-        logger.error(f"Failed to query multi kbars for {code}: {e}")
+        logger.error(f"Failed to query multi kbars for {code} with anchor_time={anchor_time}: {e}")
         raise HTTPException(status_code=500, detail="Database query failed.")
     finally:
         conn.close()
@@ -477,6 +506,7 @@ def get_multi_kbars(code: str, limit: int = 1000):
 async def get_chart_page(code: str):
     """Serves the multi-timeframe chart page."""
     html_file = frontend_path / "chart.html"
+    logger.info(f"DEBUG: Serving chart page for {code} from absolute path: {html_file.resolve().absolute()}")
     if html_file.exists():
         return html_file.read_text(encoding="utf-8")
     return "<h1>chart.html not found. Place it in frontend/chart.html</h1>"
