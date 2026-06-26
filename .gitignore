@@ -5,6 +5,7 @@ __pycache__/
 
 # Database
 Shioaji.db
+Y.db
 
 # Local configuration
 .env
