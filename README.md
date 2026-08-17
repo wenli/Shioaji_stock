@@ -41,8 +41,20 @@
    * **Yahoo 獨立下載與台北時區對齊**：Yahoo 模式下不下載 1m 分K，而是直接獨立拉取 `5m`、`15m`、`30m`、`60m`、`1d` 的 K 線資料，並自動轉換為 `Asia/Taipei` (UTC+8) 寫入。
    * **防封鎖與上限保護**：每次請求間隔 **1 秒** 防止 IP 遭 Yahoo 封鎖；針對短週期 (5m/15m/30m) 自動實施 **55 天安全下載上限**，避免觸發 Yahoo API 的 60 天硬性天數限制。
 
+8. **🎯 多週期 Order Block (OB) 即時雷達與 POI 熱區監控**
+   * **多週期 SMC 引擎 (`smc_detector.py`)**：自動針對 **5M、15M、60M、1Day** 四個週期識別市場結構破壞 (BOS) 與前置反向 K 線 Order Block。
+   * **未緩解過濾 (Mitigation Check)**：自動排除已被後續 K 棒完全擊破的失效區間，確保僅鎖定最新有效的機構訂單塊。
+   * **高能效持久化快取**：於資料庫維護 `stock_order_blocks` 快取表，在 K 線同步時自動預算，保障首頁毫秒級響應。
+   * **即時觸及狀態與多空標籤**：比對最新即時報價，自動判斷是否進入 POI 區間（多頭 Bullish 霓虹綠 / 空頭 Bearish 霓虹紅），並支援點擊卡片直達多週期線圖。
 
-7. **🧪 多策略量化回測系統 (Multi-Strategy Backtester)**
+9. **📑 現代分段卡片式 Tab 儀表板架構 (Segmented Card Tabs)**
+   * 首頁採用現代 macOS / iOS 深色分段卡片風格，分為三大專屬分頁：
+     1. **【📋 股票追蹤清單】（預設主頁）**：整合即時價格、漲跌幅、**5M/15M/60M/1D OB 微型燈號**（滑鼠懸停顯示上下界價格）、同步狀態與操作。
+     2. **【🎯 OB 即時雷達】**：獨立雷達網格，集中展示所有處於 POI 熱區的個股、多空區間與開圖捷徑；無觸及時呈現待機雷達脈衝動畫。
+     3. **【⚙️ 系統與匯入設定】**：收納 Yahoo Finance 熱門股匯入條件設定、資料來源切換與一鍵觸發按鈕。
+   * **動態徽章與 URL 路由**：Tab 按鈕即時顯示數量（如：清單 `35`、雷達 `24` + 綠色呼吸燈特效），並支援 URL Hash (`#wishlist`, `#radar`, `#settings`) 與狀態持久化記憶。
+
+10. **🧪 多策略量化回測系統 (Multi-Strategy Backtester)**
    * **多種交易策略支援**：支援在 Web 介面自由切換執行以下四大策略：
      1. **SMC 策略 (Smart Money Concepts)**：利用日線判斷 BOS 與折溢價區，並在分K進行 Sweep、ChoCH 與 FVG 限價單成交判定。
      2. **EMA 均線黃金死亡交叉**：EMA 雙均線交叉順勢策略。
@@ -64,11 +76,18 @@
 c:\Intel\Shioaji_stock\
 ├── app/
 │   ├── main.py              # FastAPI 服務入口、Web APIs、APScheduler 生命週期
-│   └── backtester.py        # 核心多策略回測引擎 (SMC, EMA, BB, KD)
+│   ├── backtester.py        # 核心多策略回測引擎 (SMC, EMA, BB, KD)
+│   └── smc_detector.py      # SMC Order Block 識別、未緩解過濾與多週期快取模組
 ├── frontend/
-│   ├── index.html           # 磨砂玻璃霓虹風 Dashboard 首頁
+│   ├── index.html           # 現代分段卡片式 (Tab Pages) Dashboard 首頁
 │   ├── chart.html           # 獨立 2x2 多週期看盤面盤 (K線 + 成交量)
 │   └── backtest.html        # 多策略量化回測與指標分析面板
+├── docs/
+│   ├── user_guide.md        # 系統使用與操作手冊
+│   ├── best_taiwan_strategy_report.md # 台股最佳策略大評比研究報告
+│   ├── smc_strategy_report.md         # SMC 策略優化分析報告
+│   └── specs/
+│       └── ob_radar_feature_spec.md   # Order Block 即時雷達功能規格書
 ├── scratch/
 │   ├── optimize_smc.py      # SMC 策略多股票網格參數優化搜尋腳本
 │   ├── strategy_tournament.py # 四大策略在台股市場同台競技對比腳本
@@ -139,7 +158,7 @@ python app/main.py
 
 ## 🗄️ 資料庫 Schema 說明
 
-資料庫 `Shioaji.db` 在服務初次啟動時會自動完成初始化與表格建立。
+資料庫 `Shioaji.db` (或 `Y.db`) 在服務初次啟動時會自動完成初始化與表格建立。
 
 ### 1. 願望清單表 `wish_list`
 | 欄位名 | 類型 | 說明 |
@@ -157,18 +176,28 @@ python app/main.py
 * `open` / `high` / `low` / `close` (REAL) - 開高低收點位
 * `volume` (INTEGER) - 該根 K 棒的累積成交股數
 
+### 3. 多週期 Order Block 快取表 `stock_order_blocks`
+聯合主鍵為 `PRIMARY KEY (code, timeframe, ob_type)`：
+* `code` (TEXT) - 股票代碼
+* `timeframe` (TEXT) - 週期（`5k`, `15k`, `60k`, `1d`）
+* `ob_type` (TEXT) - 訂單塊屬性（`BULLISH` / `BEARISH`）
+* `top_price` / `bottom_price` (REAL) - OB 價格區間上下界
+* `ob_time` (TEXT) - OB 產生之 K 線時間戳
+* `updated_at` (TIMESTAMP) - 最後快取更新時間戳
+
 ---
 
 ## 🔗 APIs 端點參考
 
 | 方法 | 端點 | 說明 |
 | :--- | :--- | :--- |
-| `GET` | `/` | 渲染 Web Dashboard 首頁 UI |
+| `GET` | `/` | 渲染 Web Dashboard 首頁 UI (Segmented Tab Pages) |
 | `GET` | `/api/status` | 讀取 Shioaji 連線狀態 |
-| `GET` | `/api/wishlist` | 獲取清單中所有股票狀態與最新收盤價/漲跌幅 |
-| `POST` | `/api/wishlist` | 新增股票代碼並於背景觸發該股歷史數據下載 |
-| `DELETE` | `/api/wishlist/{code}`| 將股票自清單移除並清除其歷史 K 線資料 |
-| `POST` | `/api/sync` | 背景手動觸發一鍵 Full-Sync 下載同步 (斷點續傳) |
+| `GET` | `/api/wishlist` | 獲取清單中所有股票狀態、即時價格/漲跌幅與 5M/15M/60M/1D OB 監控數據 |
+| `GET` | `/api/ob-radar` | 獲取當前所有觸及關鍵 5M/15M/60M/1D Order Block 的個股清單 |
+| `POST` | `/api/wishlist` | 新增股票代碼並於背景觸發該股歷史數據下載與 OB 快取 |
+| `DELETE` | `/api/wishlist/{code}`| 將股票自清單移除並清除其歷史 K 線與 OB 快取資料 |
+| `POST` | `/api/sync` | 背景手動觸發一鍵 Full-Sync 下載同步與 OB 更新 (斷點續傳) |
 | `GET` | `/api/settings/yahoo` | 獲取當前記憶體中的 Yahoo 熱門股匯入設定值 |
 | `POST` | `/api/settings/yahoo` | 更新 Yahoo 熱門股匯入設定值並寫入持久化至 `.env` |
 | `POST` | `/api/import_yahoo` | 爬取 Yahoo 成交量排行並匯入 wish list 進行背景同步 |
@@ -252,3 +281,11 @@ python app/main.py
 10. **🧪 SMC 回測面盤新增 60K (60m) 週期支援與資料污染防護**：
     * 在回測時間週期下拉選單中成功加入 `60分鐘K (60m)` 週期的量化回測。
     * 修復跨來源自動同步數據的污染漏洞，在 Yahoo 模式下執行回測會自動跳過 Shioaji 資料同步補齊。
+11. **🎯 多週期 Order Block (OB) 即時雷達與 POI 熱區監控 (`smc_detector.py`)**：
+    * 新增獨立 SMC 偵測模組，自動針對 **5M、15M、60M、1Day** 識別有效未緩解 Order Block。
+    * 建立 `stock_order_blocks` 快取資料表，於同步時自動運算儲存，首頁秒開無延遲。
+    * 提供 `/api/ob-radar` 端點與即時現價比對，動態高亮多空 POI 觸及狀態。
+12. **📑 現代分段卡片式 Tab 儀表板架構 (Segmented Card Tabs)**：
+    * 首頁儀表板重構為【📋 股票追蹤清單】、【🎯 OB 即時雷達】、【⚙️ 系統與匯入設定】三大 Tab 分頁。
+    * Tab 標籤整合動態數量徽章與呼吸光暈，並支援 URL Hash (`#wishlist`, `#radar`, `#settings`) 與狀態持久化。
+
