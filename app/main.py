@@ -16,6 +16,7 @@ import download_stock_data as dsd
 import scheduler_manager as sm
 import pandas as pd
 from app import backtester
+from app import smc_detector
 
 # Setup Logging
 logging.basicConfig(
@@ -200,57 +201,112 @@ def get_wishlist():
         except Exception as e:
             logger.error(f"Failed to fetch stock snapshots from Shioaji: {e}")
 
-    # Combine with Database sync stats
+    conn = dsd.get_db_connection()
     result = []
-    for s in wish_stocks:
-        code = s['code']
-        # Fetch last ts from DB
-        last_1k = dsd.get_last_ts("stock1k", code)
-        last_5k = dsd.get_last_ts("stock5k", code)
-        last_1d = dsd.get_last_ts("stock1d", code)
+    try:
+        for s in wish_stocks:
+            code = s['code']
+            # Fetch last ts from DB
+            last_1k = dsd.get_last_ts("stock1k", code)
+            last_5k = dsd.get_last_ts("stock5k", code)
+            last_1d = dsd.get_last_ts("stock1d", code)
 
-        
-        # Merge live snapshot info
-        snap = snapshots_dict.get(code, {})
-        
-        # If offline or market closed, fallback to db's last close price
-        close_price = snap.get("close")
-        if close_price is None or close_price == 0:
-            # Try to get last close from 1d or 1k
-            conn = dsd.get_db_connection()
-            try:
-                row = conn.execute("SELECT close FROM stock1d WHERE code = ? ORDER BY ts DESC LIMIT 1", (code,)).fetchone()
-                if row:
-                    close_price = row['close']
-                else:
-                    row = conn.execute("SELECT close FROM stock1k WHERE code = ? ORDER BY ts DESC LIMIT 1", (code,)).fetchone()
+            # Merge live snapshot info
+            snap = snapshots_dict.get(code, {})
+            
+            # If offline or market closed, fallback to db's last close price
+            close_price = snap.get("close")
+            if close_price is None or close_price == 0:
+                try:
+                    row = conn.execute("SELECT close FROM stock1d WHERE code = ? ORDER BY ts DESC LIMIT 1", (code,)).fetchone()
                     if row:
                         close_price = row['close']
-            except Exception:
-                pass
-            finally:
-                conn.close()
+                    else:
+                        row = conn.execute("SELECT close FROM stock1k WHERE code = ? ORDER BY ts DESC LIMIT 1", (code,)).fetchone()
+                        if row:
+                            close_price = row['close']
+                except Exception:
+                    pass
 
-        # Fetch sync status from memory tracker
-        tracker_status = dsd.sync_tracker.get_status(code)
+            # Fetch or compute OBs
+            obs_by_tf = smc_detector.get_stock_obs_from_db(conn, code)
+            # If completely empty for this stock, compute once
+            if not any(obs_by_tf[tf] for tf in ["5k", "15k", "60k", "1d"]):
+                smc_detector.compute_and_save_obs_for_stock(conn, code)
+                obs_by_tf = smc_detector.get_stock_obs_from_db(conn, code)
 
-        result.append({
-            "code": code,
-            "name": s['name'],
-            "status": s['status'],
-            "created_at": s['created_at'],
-            "last_sync_ts": s['last_sync_ts'] or "Never Sync",
-            "last_1k": last_1k or "No Data",
-            "last_5k": last_5k or "No Data",
-            "last_1d": last_1d or "No Data",
-            "live_price": close_price if close_price is not None else "N/A",
-            "change_rate": snap.get("change_rate", 0) if snap.get("change_rate") is not None else 0,
-            "change_price": snap.get("change_price", 0) if snap.get("change_price") is not None else 0,
-            "sync_status": tracker_status.get("status", "idle"),
-            "sync_error": tracker_status.get("error", ""),
-        })
+            # Evaluate touch status
+            active_touches = []
+            ob_status = {}
+            for tf in ["5k", "15k", "60k", "1d"]:
+                tf_obs = obs_by_tf.get(tf, {})
+                bullish = tf_obs.get("bullish")
+                bearish = tf_obs.get("bearish")
+
+                bullish_touch = False
+                bearish_touch = False
+                if close_price is not None and close_price != "N/A":
+                    try:
+                        p = float(close_price)
+                        if bullish and bullish['bottom'] <= p <= bullish['top']:
+                            bullish_touch = True
+                        if bearish and bearish['bottom'] <= p <= bearish['top']:
+                            bearish_touch = True
+                    except Exception:
+                        pass
+
+                touch_type = None
+                if bullish_touch and bearish_touch:
+                    touch_type = "BOTH"
+                    active_touches.append(tf)
+                elif bullish_touch:
+                    touch_type = "BULLISH"
+                    active_touches.append(tf)
+                elif bearish_touch:
+                    touch_type = "BEARISH"
+                    active_touches.append(tf)
+
+                ob_status[tf] = {
+                    "bullish": {**bullish, "is_touching": bullish_touch} if bullish else None,
+                    "bearish": {**bearish, "is_touching": bearish_touch} if bearish else None,
+                    "touch_type": touch_type
+                }
+
+            # Fetch sync status from memory tracker
+            tracker_status = dsd.sync_tracker.get_status(code)
+
+            result.append({
+                "code": code,
+                "name": s['name'],
+                "status": s['status'],
+                "created_at": s['created_at'],
+                "last_sync_ts": s['last_sync_ts'] or "Never Sync",
+                "last_1k": last_1k or "No Data",
+                "last_5k": last_5k or "No Data",
+                "last_1d": last_1d or "No Data",
+                "live_price": close_price if close_price is not None else "N/A",
+                "change_rate": snap.get("change_rate", 0) if snap.get("change_rate") is not None else 0,
+                "change_price": snap.get("change_price", 0) if snap.get("change_price") is not None else 0,
+                "sync_status": tracker_status.get("status", "idle"),
+                "sync_error": tracker_status.get("error", ""),
+                "active_touches": active_touches,
+                "ob_status": ob_status
+            })
+    finally:
+        conn.close()
         
     return result
+
+@app.get("/api/ob-radar")
+def get_ob_radar():
+    """Returns all stocks that are actively touching any 5M, 15M, 60M, or 1D Order Block."""
+    all_stocks = get_wishlist()
+    touching_stocks = [s for s in all_stocks if s.get("active_touches") and len(s["active_touches"]) > 0]
+    return {
+        "count": len(touching_stocks),
+        "stocks": touching_stocks,
+        "all_monitored_count": len(all_stocks)
+    }
 
 @app.post("/api/wishlist")
 def add_stock(req: WishlistRequest, background_tasks: BackgroundTasks):
