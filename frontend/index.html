@@ -510,6 +510,276 @@
             color: #fff;
             box-shadow: 0 2px 10px rgba(0, 242, 254, 0.35);
         }
+
+        /* OB Live Radar Card Styles */
+        .ob-radar-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .radar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        .radar-title-box {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .radar-title-box h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .radar-icon-pulse {
+            color: var(--neon-blue);
+            display: inline-block;
+            animation: radar-pulse 2s infinite ease-in-out;
+        }
+
+        @keyframes radar-pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 8px var(--neon-blue)); }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .radar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .radar-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.15rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .radar-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(0, 242, 254, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 242, 254, 0.15);
+        }
+
+        .radar-item-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .radar-item-badges {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .ob-chip {
+            padding: 0.35rem 0.65rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            border: 1px solid transparent;
+        }
+
+        .ob-chip.bullish {
+            background: rgba(0, 230, 118, 0.12);
+            color: #00e676;
+            border-color: rgba(0, 230, 118, 0.35);
+            box-shadow: 0 0 10px rgba(0, 230, 118, 0.15);
+        }
+
+        .ob-chip.bearish {
+            background: rgba(255, 51, 102, 0.12);
+            color: #ff3366;
+            border-color: rgba(255, 51, 102, 0.35);
+            box-shadow: 0 0 10px rgba(255, 51, 102, 0.15);
+        }
+
+        .radar-empty {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: var(--text-secondary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        /* Table micro-indicators */
+        .ob-indicators {
+            display: inline-flex;
+            gap: 0.35rem;
+            align-items: center;
+        }
+
+        .micro-chip {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            cursor: help;
+            transition: all 0.2s ease;
+        }
+
+        .micro-chip.touch-bullish {
+            background: rgba(0, 230, 118, 0.25);
+            color: #00e676;
+            border-color: rgba(0, 230, 118, 0.5);
+            box-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+            animation: pulse-green 1.8s infinite;
+        }
+
+        .micro-chip.touch-bearish {
+            background: rgba(255, 51, 102, 0.25);
+            color: #ff3366;
+            border-color: rgba(255, 51, 102, 0.5);
+            box-shadow: 0 0 8px rgba(255, 51, 102, 0.4);
+            animation: pulse-red 1.8s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 4px rgba(0, 230, 118, 0.2); }
+            50% { box-shadow: 0 0 10px rgba(0, 230, 118, 0.6); }
+            100% { box-shadow: 0 0 4px rgba(0, 230, 118, 0.2); }
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 4px rgba(255, 51, 102, 0.2); }
+            50% { box-shadow: 0 0 10px rgba(255, 51, 102, 0.6); }
+            100% { box-shadow: 0 0 4px rgba(255, 51, 102, 0.2); }
+        }
+
+        .micro-chip.idle {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-secondary);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .micro-chip.no-data {
+            color: rgba(255, 255, 255, 0.15);
+            background: transparent;
+            border-color: transparent;
+        }
+
+        /* Segmented Card Tabs Navigation */
+        .tabs-nav-container {
+            display: flex;
+            background: rgba(15, 18, 26, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 6px;
+            gap: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        }
+
+        .tab-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.65rem;
+            padding: 0.85rem 1.25rem;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.15) 0%, rgba(79, 172, 254, 0.2) 100%);
+            color: #fff;
+            border-color: rgba(0, 242, 254, 0.35);
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.15);
+        }
+
+        .tab-count-badge {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+            font-weight: 700;
+            transition: all 0.25s ease;
+        }
+
+        .tab-btn.active .tab-count-badge {
+            background: rgba(0, 242, 254, 0.25);
+            color: var(--neon-blue);
+            border: 1px solid rgba(0, 242, 254, 0.4);
+        }
+
+        .tab-count-badge.radar-badge.active-pulse {
+            background: rgba(0, 230, 118, 0.2);
+            color: #00e676;
+            border: 1px solid rgba(0, 230, 118, 0.4);
+            animation: pulse-green 2s infinite;
+        }
+
+        /* Tab Content Panes & Fade-in Animation */
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            opacity: 1;
+            transform: translateY(0);
+            animation: tab-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes tab-fade-in {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -548,11 +818,8 @@
                     <i class="fa-solid fa-plus"></i> 新增股票
                 </button>
             </div>
-            <!-- One Key Sync, Import & Backtest -->
+            <!-- One Key Sync & SMC Backtest -->
             <div class="sync-box" style="display: flex; gap: 0.75rem; width: 100%;">
-                <button id="import-yahoo-btn" class="btn btn-secondary" style="flex: 1;">
-                    <i class="fa-solid fa-download"></i> 匯入 Yahoo
-                </button>
                 <a href="/backtest" target="_blank" class="btn btn-secondary" style="flex: 1; text-decoration: none;">
                     <i class="fa-solid fa-flask"></i> SMC 回測
                 </a>
@@ -562,56 +829,109 @@
             </div>
         </div>
 
-        <!-- Yahoo Settings Panel -->
-        <div class="settings-box">
-            <div class="settings-header">
+        <!-- Segmented Card Tabs Navigation -->
+        <div class="tabs-nav-container">
+            <button class="tab-btn active" id="tab-btn-wishlist" onclick="switchTab('tab-wishlist')">
+                <i class="fa-solid fa-list-check"></i>
+                <span>股票追蹤清單</span>
+                <span class="tab-count-badge" id="tab-count-wishlist">0</span>
+            </button>
+            <button class="tab-btn" id="tab-btn-radar" onclick="switchTab('tab-radar')">
+                <i class="fa-solid fa-satellite-dish"></i>
+                <span>OB 即時雷達</span>
+                <span class="tab-count-badge radar-badge" id="tab-count-radar">0</span>
+            </button>
+            <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('tab-settings')">
                 <i class="fa-solid fa-sliders"></i>
-                <span>Yahoo 匯入設定</span>
-            </div>
-            <div class="settings-fields">
-                <div class="input-group">
-                    <label for="settings-max-price">最大股價限制 (元)</label>
-                    <input type="number" id="settings-max-price" min="1" placeholder="例如：100">
+                <span>系統與匯入設定</span>
+            </button>
+        </div>
+
+        <!-- TAB 1: 股票追蹤清單 -->
+        <div class="tab-content active" id="tab-wishlist">
+            <div class="wishlist-card">
+                <div class="card-header">
+                    <h2>追蹤名單</h2>
+                    <span id="total-count" class="sync-badge">共 0 檔股票</span>
                 </div>
-                <div class="input-group">
-                    <label for="settings-limit">最大匯入數量 (檔)</label>
-                    <input type="number" id="settings-limit" min="1" placeholder="例如：20">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>股票</th>
+                                <th>最新價格</th>
+                                <th>當日漲跌</th>
+                                <th>OB 監控 (5M/15M/60M/1D)</th>
+                                <th>1分K 更新時間</th>
+                                <th>5分K 更新時間</th>
+                                <th>日K 更新時間</th>
+                                <th>下載狀態</th>
+                                <th style="width: 60px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wishlist-body">
+                            <tr>
+                                <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 3rem 0;">
+                                    <div class="spinner" style="margin-bottom: 1rem;"></div>
+                                    <div>加載中，請稍候...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <button id="save-settings-btn" class="btn btn-primary" style="height: 45px;">
-                    <i class="fa-solid fa-floppy-disk"></i> 儲存設定
-                </button>
             </div>
         </div>
 
-        <!-- Wish List Table Card -->
-        <div class="wishlist-card">
-            <div class="card-header">
-                <h2>追蹤名單</h2>
-                <span id="total-count" class="sync-badge">共 0 檔股票</span>
+        <!-- TAB 2: OB 即時雷達 -->
+        <div class="tab-content" id="tab-radar">
+            <div class="ob-radar-card" id="ob-radar-section">
+                <div class="radar-header">
+                    <div class="radar-title-box">
+                        <i class="fa-solid fa-satellite-dish radar-icon-pulse" style="font-size: 1.4rem;"></i>
+                        <div>
+                            <h2>OB 觸及即時雷達</h2>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">監控 5M / 15M / 60M / 1D Order Block 關鍵進場熱區 (POI)</p>
+                        </div>
+                    </div>
+                    <span id="radar-count-badge" class="sync-badge" style="color: var(--neon-blue); border-color: rgba(0, 242, 254, 0.3); font-weight: 600;">
+                        <i class="fa-solid fa-radar fa-spin" style="margin-right: 4px;"></i>偵測中...
+                    </span>
+                </div>
+                <div id="radar-grid-container" class="radar-grid">
+                    <div class="radar-empty">
+                        <div class="spinner"></div>
+                        <div>正在掃描多週期 Order Block 狀態...</div>
+                    </div>
+                </div>
             </div>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>股票</th>
-                            <th>最新價格</th>
-                            <th>當日漲跌</th>
-                            <th>1分K 更新時間</th>
-                            <th>5分K 更新時間</th>
-                            <th>日K 更新時間</th>
-                            <th>下載狀態</th>
-                            <th style="width: 60px;">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="wishlist-body">
-                        <tr>
-                            <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 3rem 0;">
-                                <div class="spinner" style="margin-bottom: 1rem;"></div>
-                                <div>加載中，請稍候...</div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+        </div>
+
+        <!-- TAB 3: 系統與匯入設定 -->
+        <div class="tab-content" id="tab-settings">
+            <div class="settings-box">
+                <div class="settings-header">
+                    <i class="fa-solid fa-download"></i>
+                    <span>Yahoo 股票匯入設定</span>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                    設定 Yahoo Finance 熱門股自動匯入條件，一鍵匯入成交量排行榜個股並自動同步多週期 K 線。
+                </p>
+                <div class="settings-fields">
+                    <div class="input-group">
+                        <label for="settings-max-price">最大股價限制 (元)</label>
+                        <input type="number" id="settings-max-price" min="1" placeholder="例如：100">
+                    </div>
+                    <div class="input-group">
+                        <label for="settings-limit">最大匯入數量 (檔)</label>
+                        <input type="number" id="settings-limit" min="1" placeholder="例如：20">
+                    </div>
+                    <button id="save-settings-btn" class="btn btn-primary" style="height: 45px;">
+                        <i class="fa-solid fa-floppy-disk"></i> 儲存設定
+                    </button>
+                    <button id="import-yahoo-btn" class="btn btn-secondary" style="height: 45px;">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> 立即匯入 Yahoo 熱門股
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -671,8 +991,50 @@
             }
         }
 
+        // Tab Switching System
+        function switchTab(tabId) {
+            const shortKey = tabId.replace('tab-', '');
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                if (btn.id === 'tab-btn-' + shortKey) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            document.querySelectorAll('.tab-content').forEach(pane => {
+                if (pane.id === tabId) {
+                    pane.classList.add('active');
+                } else {
+                    pane.classList.remove('active');
+                }
+            });
+
+            if (window.location.hash !== '#' + shortKey) {
+                history.replaceState(null, null, '#' + shortKey);
+            }
+            localStorage.setItem('active_dashboard_tab', tabId);
+        }
+
+        function initTabFromHash() {
+            const hash = window.location.hash.replace('#', '');
+            const tabMap = {
+                'wishlist': 'tab-wishlist',
+                'radar': 'tab-radar',
+                'settings': 'tab-settings'
+            };
+            const targetTab = tabMap[hash] || localStorage.getItem('active_dashboard_tab') || 'tab-wishlist';
+            switchTab(targetTab);
+        }
+
+        window.addEventListener('hashchange', () => {
+            initTabFromHash();
+        });
+
         // Fetch Status & Wishlist on mount
         window.addEventListener('DOMContentLoaded', () => {
+            initTabFromHash();
             fetchStatus();
             fetchWishlist();
             fetchYahooSettings();
@@ -773,8 +1135,154 @@
             }
         }
 
+        // Render micro chips for 5M, 15M, 60M, 1D in the table
+        function renderMicroOBChips(obStatus) {
+            if (!obStatus) return '<span style="color: var(--text-secondary);">-</span>';
+            const tfLabels = { '5k': '5M', '15k': '15M', '60k': '60M', '1d': '1D' };
+            const tfOrder = ['5k', '15k', '60k', '1d'];
+            
+            let html = '<div class="ob-indicators">';
+            for (const tf of tfOrder) {
+                const label = tfLabels[tf];
+                const info = obStatus[tf];
+                if (!info || (!info.bullish && !info.bearish)) {
+                    html += `<span class="micro-chip no-data" title="${label}: 暫無有效 OB">${label}</span>`;
+                    continue;
+                }
+                
+                const touchType = info.touch_type;
+                const bullish = info.bullish;
+                const bearish = info.bearish;
+
+                let tooltipParts = [];
+                if (bullish) tooltipParts.push(`多頭OB: ${bullish.bottom.toFixed(1)}~${bullish.top.toFixed(1)}`);
+                if (bearish) tooltipParts.push(`空頭OB: ${bearish.bottom.toFixed(1)}~${bearish.top.toFixed(1)}`);
+                const tip = `${label} (${tooltipParts.join(' | ')})`;
+
+                if (touchType === 'BULLISH') {
+                    html += `<span class="micro-chip touch-bullish" title="${tip} (觸及多頭熱區！)">${label}▲</span>`;
+                } else if (touchType === 'BEARISH') {
+                    html += `<span class="micro-chip touch-bearish" title="${tip} (觸及空頭熱區！)">${label}▼</span>`;
+                } else if (touchType === 'BOTH') {
+                    html += `<span class="micro-chip touch-bullish" title="${tip} (觸及多空重疊熱區！)">${label}◆</span>`;
+                } else {
+                    html += `<span class="micro-chip idle" title="${tip}">${label}</span>`;
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+
+        // Render OB Live Radar Grid
+        function renderRadar(stocks) {
+            const grid = document.getElementById('radar-grid-container');
+            const countBadge = document.getElementById('radar-count-badge');
+            if (!grid || !countBadge) return;
+
+            const touchingStocks = stocks.filter(s => s.active_touches && s.active_touches.length > 0);
+            countBadge.innerHTML = `<i class="fa-solid fa-radar fa-spin" style="margin-right: 4px;"></i>${touchingStocks.length} 檔觸及熱區 / 共 ${stocks.length} 檔`;
+
+            if (touchingStocks.length === 0) {
+                grid.innerHTML = `
+                    <div class="radar-empty" style="grid-column: 1 / -1;">
+                        <i class="fa-solid fa-satellite-dish" style="font-size: 2rem; color: var(--neon-blue); opacity: 0.6;"></i>
+                        <div>目前追蹤之 ${stocks.length} 檔個股無觸及關鍵 Order Block，系統持續多週期監控中...</div>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = '';
+            const tfLabels = { '5k': '5M', '15k': '15M', '60k': '60M', '1d': '1D' };
+
+            touchingStocks.forEach(stock => {
+                const item = document.createElement('div');
+                item.className = 'radar-item';
+
+                // Price change class
+                let changeClass = 'flat';
+                let sign = '';
+                if (stock.change_price > 0) {
+                    changeClass = 'up';
+                    sign = '+';
+                } else if (stock.change_price < 0) {
+                    changeClass = 'down';
+                }
+                const changeText = stock.change_price !== 0 
+                    ? `${sign}${stock.change_price.toFixed(2)} (${sign}${stock.change_rate.toFixed(2)}%)`
+                    : '0.00%';
+
+                // Render active OB badges
+                let obBadgesHTML = '';
+                const obStatus = stock.ob_status || {};
+                for (const tf of ['5k', '15k', '60k', '1d']) {
+                    const info = obStatus[tf];
+                    if (!info) continue;
+
+                    const label = tfLabels[tf];
+                    if (info.bullish && info.bullish.is_touching) {
+                        obBadgesHTML += `
+                            <div class="ob-chip bullish">
+                                <span><i class="fa-solid fa-circle-arrow-up"></i> ${label} 多頭 OB</span>
+                                <span style="font-family: monospace; font-size: 0.75rem;">${info.bullish.bottom.toFixed(1)} ~ ${info.bullish.top.toFixed(1)}</span>
+                            </div>
+                        `;
+                    }
+                    if (info.bearish && info.bearish.is_touching) {
+                        obBadgesHTML += `
+                            <div class="ob-chip bearish">
+                                <span><i class="fa-solid fa-circle-arrow-down"></i> ${label} 空頭 OB</span>
+                                <span style="font-family: monospace; font-size: 0.75rem;">${info.bearish.bottom.toFixed(1)} ~ ${info.bearish.top.toFixed(1)}</span>
+                            </div>
+                        `;
+                    }
+                }
+
+                item.innerHTML = `
+                    <div class="radar-item-top">
+                        <div class="stock-info">
+                            <span class="stock-code" style="font-size: 1.1rem;">${stock.code} <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-secondary);">${stock.name}</span></span>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="price-badge ${changeClass}">${stock.live_price !== 'N/A' ? parseFloat(stock.live_price).toFixed(2) : 'N/A'}</div>
+                            <div class="change-rate ${changeClass}" style="font-size: 0.75rem; justify-content: flex-end;">${changeText}</div>
+                        </div>
+                    </div>
+                    <div class="radar-item-badges">
+                        ${obBadgesHTML}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--neon-blue); display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px;">
+                        <span>查看多週期圖表</span> <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.7rem;"></i>
+                    </div>
+                `;
+
+                item.addEventListener('click', () => {
+                    window.open(`/chart/${stock.code}`, '_blank');
+                });
+
+                grid.appendChild(item);
+            });
+        }
+
         // Render table
         function renderWishlist(stocks) {
+            // Render Radar Section
+            renderRadar(stocks);
+
+            // Update Tab Badges
+            const tabCountWishlist = document.getElementById('tab-count-wishlist');
+            const tabCountRadar = document.getElementById('tab-count-radar');
+            if (tabCountWishlist) tabCountWishlist.textContent = stocks.length;
+            if (tabCountRadar) {
+                const touchingCount = stocks.filter(s => s.active_touches && s.active_touches.length > 0).length;
+                tabCountRadar.textContent = touchingCount;
+                if (touchingCount > 0) {
+                    tabCountRadar.classList.add('active-pulse');
+                } else {
+                    tabCountRadar.classList.remove('active-pulse');
+                }
+            }
+
             const body = document.getElementById('wishlist-body');
             const countBadge = document.getElementById('total-count');
             countBadge.textContent = `共 ${stocks.length} 檔股票`;
@@ -782,8 +1290,8 @@
             if (stocks.length === 0) {
                 body.innerHTML = `
                     <tr>
-                        <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 3rem 0;">
-                            目前沒有追蹤 any 股票。請在上方輸入代碼新增。
+                        <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 3rem 0;">
+                            目前沒有追蹤任何股票。請在上方輸入代碼新增。
                         </td>
                     </tr>
                 `;
@@ -830,6 +1338,9 @@
                     statusHTML = `<span class="sync-badge" style="color: var(--text-secondary);">-</span>`;
                 }
 
+                // Render micro OB chips
+                const obChipsHTML = renderMicroOBChips(stock.ob_status);
+
                 tr.innerHTML = `
                     <td>
                         <div class="stock-info">
@@ -843,6 +1354,9 @@
                     <td>
                         <span class="change-rate ${changeClass}">${changeText}</span>
                     </td>
+                    <td>
+                        ${obChipsHTML}
+                    </td>
                     <td><span class="sync-badge">${cleanTime(stock.last_1k, true)}</span></td>
                     <td><span class="sync-badge">${cleanTime(stock.last_5k)}</span></td>
                     <td><span class="sync-badge">${cleanTime(stock.last_1d)}</span></td>
@@ -853,7 +1367,6 @@
                         </button>
                     </td>
                 `;
-
 
                 // Row click opens chart in a new tab
                 tr.addEventListener('click', (e) => {
