@@ -129,6 +129,21 @@ def init_db() -> None:
                 )
             """)
             
+        # Create stock_order_blocks table
+        logger.info("Checking/Creating table: stock_order_blocks")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_order_blocks (
+                code TEXT,
+                timeframe TEXT,
+                ob_type TEXT,
+                top_price REAL,
+                bottom_price REAL,
+                ob_time TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (code, timeframe, ob_type)
+            )
+        """)
+        
         conn.commit()
         logger.info("Database initialization successful.")
     except Exception as e:
@@ -217,6 +232,18 @@ def get_last_ts(table: str, code: str) -> str:
         return ""
     finally:
         conn.close()
+
+def update_stock_obs(code: str):
+    """Calculates and updates SMC Order Blocks for stock in DB."""
+    try:
+        from app.smc_detector import compute_and_save_obs_for_stock
+        conn = get_db_connection()
+        try:
+            compute_and_save_obs_for_stock(conn, code)
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.error(f"Error computing OBs for {code}: {e}")
 
 def save_to_db(df: pd.DataFrame, table_name: str) -> int:
     """Saves DataFrame to specified SQLite table using INSERT OR IGNORE."""
@@ -361,6 +388,9 @@ def download_stock_kbars(api, contract, start_date: str, end_date: str) -> dict:
             last_ts = df_1k_save['ts'].iloc[-1]
             update_wish_list_sync_time(code, last_ts)
 
+        # Compute & Save SMC Order Blocks
+        update_stock_obs(code)
+
         logger.info(f"Sync Stats for Stock {code}: {stats}")
         sync_tracker.set_status(code, "success")
         return stats
@@ -495,6 +525,9 @@ def download_yahoo_kbars(code: str, start_date: str, end_date: str) -> dict:
             if not df_save.empty:
                 last_ts_written = df_save['ts'].iloc[-1]
                 update_wish_list_sync_time(code, last_ts_written)
+
+        # Compute & Save SMC Order Blocks
+        update_stock_obs(code)
 
         logger.info(f"Yahoo Sync Stats for Stock {code}: {stats}")
         sync_tracker.set_status(code, "success")
