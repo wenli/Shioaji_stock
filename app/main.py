@@ -86,6 +86,7 @@ class BacktestRequest(BaseModel):
     fee_discount: float = 0.6
     enable_short: bool = False
     holding_mode: str = "day_trade"
+    htf_timeframe: str = "1d"
     ltf_timeframe: str = "5k"
     strategy_name: str = "smc"
 
@@ -751,6 +752,7 @@ def run_backtest_endpoint(req: BacktestRequest):
             fee_discount=req.fee_discount,
             enable_short=req.enable_short,
             holding_mode=req.holding_mode,
+            htf_timeframe=req.htf_timeframe,
             ltf_timeframe=req.ltf_timeframe,
             strategy_name=req.strategy_name
         )

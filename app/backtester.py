@@ -4,6 +4,7 @@ import numpy as np
 import logging
 from pathlib import Path
 from download_stock_data import get_db_connection
+from app.smc_detector import detect_order_blocks
 
 logger = logging.getLogger(__name__)
 
@@ -30,23 +31,28 @@ def run_backtest(
     fee_discount: float = 0.6,
     enable_short: bool = False,
     holding_mode: str = "day_trade",
+    htf_timeframe: str = "1d",
     ltf_timeframe: str = "5k",
     strategy_name: str = "smc"
 ) -> dict:
     """
     Runs trading strategy backtest on the SQLite data.
     Supports strategies: 'smc', 'ema_cross', 'bollinger_bands', 'kd_indicator'.
+    Supports HTF: '1d', '60k'.
     """
     conn = get_db_connection()
     
-    # 1. 載入日K資料 (HTF)
-    query_1d = """
+    # 1. 載入 HTF 資料 (日K 或 60K)，往前多抓足夠的天期建立回顧窗口
+    htf_table = "stock1d" if htf_timeframe == "1d" else "stock60k"
+    lookback_days = max(180, htf_window * 3) if htf_timeframe == "1d" else max(90, int(htf_window / 2))
+    
+    query_htf = f"""
         SELECT ts, open, high, low, close, volume 
-        FROM stock1d 
-        WHERE code = ? AND date(ts) BETWEEN date(?) AND date(?)
+        FROM {htf_table} 
+        WHERE code = ? AND date(ts) BETWEEN date(?, '-{lookback_days} day') AND date(?)
         ORDER BY ts ASC
     """
-    df_1d = pd.read_sql_query(query_1d, conn, params=[code, start_date, end_date])
+    df_htf = pd.read_sql_query(query_htf, conn, params=[code, start_date, end_date])
     
     # 2. 載入分K資料 (LTF)，往前多抓幾天用來計算指標
     query_ltf = f"""
@@ -58,21 +64,23 @@ def run_backtest(
     df_ltf = pd.read_sql_query(query_ltf, conn, params=[code, start_date, end_date])
     conn.close()
 
-    if df_1d.empty or df_ltf.empty:
+    if df_htf.empty or df_ltf.empty:
         logger.warning(f"No backtest data for stock {code} in database.")
         return {
             "success": False,
-            "error": f"資料庫中沒有此日期區間的歷史 K 線數據（週期: {ltf_timeframe}），請先同步資料。"
+            "error": f"資料庫中沒有此日期區間的歷史 K 線數據（HTF: {htf_timeframe}, LTF: {ltf_timeframe}），請先同步資料。"
         }
 
-    # 3. 計算 HTF 日線結構 (BOS, Equilibrium, Bias)
-    df_1d['range_high'] = df_1d['high'].shift(1).rolling(window=htf_window).max()
-    df_1d['range_low'] = df_1d['low'].shift(1).rolling(window=htf_window).min()
-    df_1d['equilibrium'] = (df_1d['range_high'] + df_1d['range_low']) / 2
+    s_name = strategy_name.lower().strip()
+
+    # 3. 計算 HTF 結構 (BOS, Equilibrium, Bias, Order Blocks)
+    df_htf['range_high'] = df_htf['high'].shift(1).rolling(window=htf_window).max()
+    df_htf['range_low'] = df_htf['low'].shift(1).rolling(window=htf_window).min()
+    df_htf['equilibrium'] = (df_htf['range_high'] + df_htf['range_low']) / 2
     
     bias_series = []
     current_bias = "BULLISH"
-    for idx, row in df_1d.iterrows():
+    for idx, row in df_htf.iterrows():
         close = row['close']
         r_high = row['range_high']
         r_low = row['range_low']
@@ -84,18 +92,35 @@ def run_backtest(
                 current_bias = "BEARISH"
         bias_series.append(current_bias)
         
-    df_1d['bias'] = bias_series
+    df_htf['bias'] = bias_series
+
+    # 建立滾動 HTF 狀態序列（包含動態 Order Blocks，避免未來函數）
+    htf_states = [] # list of (ts_str, state_dict)
+    swing_w = max(2, min(5, int(htf_window / 8))) if htf_timeframe == "60k" else 3
     
-    # 建立日期對照 Dict (YYYY-MM-DD -> HTF 狀態)
-    df_1d['date_str'] = pd.to_datetime(df_1d['ts']).dt.strftime('%Y-%m-%d')
-    htf_status = {}
-    for _, row in df_1d.iterrows():
-        htf_status[row['date_str']] = {
-            "bias": row['bias'],
-            "equilibrium": row['equilibrium'],
-            "range_high": row['range_high'],
-            "range_low": row['range_low']
+    n_htf = len(df_htf)
+    for i in range(5, n_htf + 1):
+        sub_htf = df_htf.iloc[0:i]
+        last_row = sub_htf.iloc[-1]
+        ts_val = str(last_row['ts'])
+        
+        # 僅在 SMC 策略時計算 OB (使用近 60 根 HTF 窗口，提升運算效能)
+        if s_name == "smc":
+            recent_sub = sub_htf.iloc[-min(60, len(sub_htf)):].copy().reset_index(drop=True)
+            obs = detect_order_blocks(recent_sub, timeframe=htf_timeframe, swing_window=swing_w)
+        else:
+            obs = {"bullish_ob": None, "bearish_ob": None}
+        
+        state = {
+            "ts": ts_val,
+            "bias": last_row['bias'],
+            "equilibrium": last_row['equilibrium'],
+            "range_high": last_row['range_high'],
+            "range_low": last_row['range_low'],
+            "bullish_ob": obs.get("bullish_ob"),
+            "bearish_ob": obs.get("bearish_ob")
         }
+        htf_states.append((ts_val, state))
 
     # 4. 計算 LTF 輔助指標 (ATR, 昨日最低點 PDL/昨日最高點 PDH)
     df_ltf['ts_datetime'] = pd.to_datetime(df_ltf['ts'])
@@ -114,7 +139,6 @@ def run_backtest(
         pdh_map[sorted_dates[i]] = daily_highs[sorted_dates[i-1]]
 
     # B. 計算其他交易策略之指標
-    s_name = strategy_name.lower().strip()
     if s_name == "ema_cross":
         # 快均線天期為 htf_window / 4, 慢均線天期為 htf_window
         fast_span = max(5, int(htf_window / 4))
@@ -174,6 +198,7 @@ def run_backtest(
     trades_log = []
     equity_curve = []
     last_logged_date = None
+    htf_idx = 0
 
     # 遍歷 LTF K棒
     for idx in range(10, len(df_backtest_ltf)):
@@ -199,7 +224,23 @@ def run_backtest(
             })
             last_logged_date = current_date_str
 
-        day_htf = htf_status.get(current_date_str)
+        # 指針滾動獲取當前已收盤的最新 HTF 狀態 (無未來函數)
+        while htf_idx + 1 < len(htf_states):
+            next_ts = htf_states[htf_idx + 1][0]
+            if htf_timeframe == "1d":
+                # 日K在次日開盤才作為完成狀態生效
+                if next_ts[:10] < current_date_str:
+                    htf_idx += 1
+                else:
+                    break
+            else: # 60k
+                # 60K 在該根K線結束時生效
+                if next_ts <= current_time:
+                    htf_idx += 1
+                else:
+                    break
+
+        day_htf = htf_states[htf_idx][1] if htf_states else None
         pdl = pdl_map.get(current_date_str, 0.0)
         pdh = pdh_map.get(current_date_str, 0.0)
 
@@ -207,6 +248,7 @@ def run_backtest(
         if in_position:
             # A. 做多持倉管理
             if position_type == "LONG":
+                # 1. 停損判斷
                 if low_ltf <= sl_price:
                     exit_price = sl_price
                     fee_tax = exit_price * shares * (0.001425 * fee_discount + 0.003)
@@ -231,6 +273,7 @@ def run_backtest(
                     shares = 0
                     logger.info(f"[{current_time}] Long SL hit at {exit_price}")
                     
+                # 2. 主要 RR 停利判斷
                 elif high_ltf >= tp_price:
                     exit_price = tp_price
                     fee_tax = exit_price * shares * (0.001425 * fee_discount + 0.003)
@@ -254,6 +297,31 @@ def run_backtest(
                     position_type = None
                     shares = 0
                     logger.info(f"[{current_time}] Long TP hit at {exit_price}")
+
+                # 3. 結構雙重保護停利：若碰觸對向未緩解 HTF Bearish OB 下沿且已獲利，提前保護出場
+                elif s_name == "smc" and day_htf and day_htf.get("bearish_ob") and high_ltf >= day_htf["bearish_ob"]["bottom"] and day_htf["bearish_ob"]["bottom"] > entry_price:
+                    exit_price = day_htf["bearish_ob"]["bottom"]
+                    fee_tax = exit_price * shares * (0.001425 * fee_discount + 0.003)
+                    pnl = (exit_price - entry_price) * shares - fee_tax - (entry_price * shares * 0.001425 * fee_discount)
+                    balance = balance + (exit_price * shares) - fee_tax
+                    
+                    trades_log.append({
+                        "trade_no": len(trades_log) + 1,
+                        "direction": "LONG",
+                        "entry_time": entry_time,
+                        "entry_price": round(float(entry_price), 2),
+                        "exit_time": current_time,
+                        "exit_price": round(float(exit_price), 2),
+                        "shares": int(shares),
+                        "type": "TP_OB",
+                        "pnl": round(float(pnl), 2),
+                        "pnl_pct": round(float((pnl / (entry_price * shares)) * 100), 2),
+                        "fee_tax": round(float(fee_tax), 2)
+                    })
+                    in_position = False
+                    position_type = None
+                    shares = 0
+                    logger.info(f"[{current_time}] Long TP (Opposing Bearish OB Protection) at {exit_price}")
                     
                 elif (holding_mode == "day_trade" and current_time.endswith("13:30:00")) or idx == len(df_backtest_ltf) - 1:
                     exit_price = close_ltf
@@ -281,6 +349,7 @@ def run_backtest(
             
             # B. 做空持倉管理
             elif position_type == "SHORT":
+                # 1. 停損判斷
                 if high_ltf >= sl_price:
                     exit_price = sl_price
                     tax = entry_price * shares * 0.003
@@ -307,6 +376,7 @@ def run_backtest(
                     shares = 0
                     logger.info(f"[{current_time}] Short SL hit at {exit_price}")
                     
+                # 2. 主要 RR 停利判斷
                 elif low_ltf <= tp_price:
                     exit_price = tp_price
                     tax = entry_price * shares * 0.003
@@ -332,6 +402,33 @@ def run_backtest(
                     position_type = None
                     shares = 0
                     logger.info(f"[{current_time}] Short TP hit at {exit_price}")
+
+                # 3. 結構雙重保護停利：若碰觸對向未緩解 HTF Bullish OB 上沿且已獲利，提前保護出場
+                elif s_name == "smc" and day_htf and day_htf.get("bullish_ob") and low_ltf <= day_htf["bullish_ob"]["top"] and day_htf["bullish_ob"]["top"] < entry_price:
+                    exit_price = day_htf["bullish_ob"]["top"]
+                    tax = entry_price * shares * 0.003
+                    buy_fee = exit_price * shares * 0.001425 * fee_discount
+                    flat_costs = buy_fee + tax
+                    pnl = (entry_price - exit_price) * shares - flat_costs
+                    balance = balance - (exit_price * shares) - flat_costs
+                    
+                    trades_log.append({
+                        "trade_no": len(trades_log) + 1,
+                        "direction": "SHORT",
+                        "entry_time": entry_time,
+                        "entry_price": round(float(entry_price), 2),
+                        "exit_time": current_time,
+                        "exit_price": round(float(exit_price), 2),
+                        "shares": int(shares),
+                        "type": "TP_OB",
+                        "pnl": round(float(pnl), 2),
+                        "pnl_pct": round(float((pnl / (entry_price * shares)) * 100), 2),
+                        "fee_tax": round(float(flat_costs), 2)
+                    })
+                    in_position = False
+                    position_type = None
+                    shares = 0
+                    logger.info(f"[{current_time}] Short TP (Opposing Bullish OB Protection) at {exit_price}")
                     
                 elif (holding_mode == "day_trade" and current_time.endswith("13:30:00")) or idx == len(df_backtest_ltf) - 1:
                     exit_price = close_ltf
@@ -408,6 +505,48 @@ def run_backtest(
                 # 判定做多或做空
                 can_trade_long = (day_htf is not None and day_htf['bias'] == "BULLISH" and day_htf['equilibrium'] is not None and close_ltf < day_htf['equilibrium'])
                 can_trade_short = (day_htf is not None and day_htf['bias'] == "BEARISH" and enable_short and day_htf['equilibrium'] is not None and close_ltf > day_htf['equilibrium'])
+                
+                # 1. 優先檢查：HTF Order Block 限價回踩進場
+                bullish_ob = day_htf.get("bullish_ob") if day_htf else None
+                bearish_ob = day_htf.get("bearish_ob") if day_htf else None
+
+                if can_trade_long and bullish_ob:
+                    p_entry = bullish_ob['top']
+                    if low_ltf <= p_entry and close_ltf >= (bullish_ob['bottom'] - sl_buffer_pct * atr_ltf):
+                        p_sl = max(bullish_ob['bottom'] - (sl_buffer_pct * atr_ltf), 0.1)
+                        if p_sl >= p_entry:
+                            p_sl = p_entry - 0.5
+                        p_tp = p_entry + (p_entry - p_sl) * rr_ratio
+                        
+                        risk_amount = balance * risk_pct
+                        price_diff = p_entry - p_sl
+                        if price_diff > 0:
+                            shares = int(min(risk_amount / price_diff, balance / p_entry))
+                            if shares > 0:
+                                balance = balance - (p_entry * shares) - (p_entry * shares * 0.001425 * fee_discount)
+                                in_position, position_type, entry_price, entry_time, sl_price, tp_price = True, "LONG", p_entry, current_time, p_sl, p_tp
+                                logger.info(f"[{current_time}] Long Filled (HTF {htf_timeframe.upper()} OB) at {entry_price}")
+                                continue
+
+                elif can_trade_short and bearish_ob and enable_short:
+                    p_entry = bearish_ob['bottom']
+                    if high_ltf >= p_entry and close_ltf <= (bearish_ob['top'] + sl_buffer_pct * atr_ltf):
+                        p_sl = bearish_ob['top'] + (sl_buffer_pct * atr_ltf)
+                        if p_sl <= p_entry:
+                            p_sl = p_entry + 0.5
+                        p_tp = p_entry - (p_sl - p_entry) * rr_ratio
+                        
+                        risk_amount = balance * risk_pct
+                        price_diff = p_sl - p_entry
+                        if price_diff > 0:
+                            shares = int(min(risk_amount / price_diff, balance / p_entry))
+                            if shares > 0:
+                                balance = balance + (p_entry * shares) - (p_entry * shares * 0.001425 * fee_discount)
+                                in_position, position_type, entry_price, entry_time, sl_price, tp_price = True, "SHORT", p_entry, current_time, p_sl, p_tp
+                                logger.info(f"[{current_time}] Short Filled (HTF {htf_timeframe.upper()} OB) at {entry_price}")
+                                continue
+
+                # 2. 次要/補充機制：LTF 結構掃蕩 (Sweep) 與 CHoCH + FVG/OB 掛單進場
                 
                 if can_trade_long:
                     prev_10_lows = df_backtest_ltf.iloc[idx-10:idx]['low'].min()
