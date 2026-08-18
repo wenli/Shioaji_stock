@@ -263,3 +263,83 @@ def get_stock_obs_from_db(conn: sqlite3.Connection, code: str) -> dict:
     except Exception as e:
         logger.error(f"Error fetching OBs from DB for {code}: {e}")
         return {"5k": {}, "15k": {}, "60k": {}, "1d": {}}
+
+
+def calculate_trade_setup(ob_type: str, top: float, bottom: float) -> dict | None:
+    """
+    Calculates Entry, Stop Loss (SL), Take Profit 1 (TP1 1:2 R:R), and Take Profit 2 (TP2 1:3 R:R)
+    based on an active Order Block's boundaries.
+    """
+    if not top or not bottom or top <= 0 or bottom <= 0:
+        return None
+    try:
+        top = float(top)
+        bottom = float(bottom)
+    except (ValueError, TypeError):
+        return None
+
+    if top < bottom:
+        top, bottom = bottom, top
+
+    mid = round((top + bottom) / 2.0, 2)
+    spread = top - bottom
+    
+    ob_upper = ob_type.upper()
+    if ob_upper == "BULLISH":
+        # Protective buffer below OB bottom (at least 0.5% or 0.1)
+        buffer = max(spread * 0.2, mid * 0.005, 0.1)
+        sl = round(bottom - buffer, 2)
+        risk = round(mid - sl, 2)
+        if risk <= 0:
+            risk = round(max(mid * 0.01, 0.1), 2)
+            sl = round(mid - risk, 2)
+        
+        tp1 = round(mid + (2.0 * risk), 2)
+        tp2 = round(mid + (3.0 * risk), 2)
+        risk_pct = round((risk / mid) * 100.0, 2) if mid > 0 else 0
+        tp1_gain_pct = round(((tp1 - mid) / mid) * 100.0, 2) if mid > 0 else 0
+        tp2_gain_pct = round(((tp2 - mid) / mid) * 100.0, 2) if mid > 0 else 0
+        
+        return {
+            "direction": "LONG",
+            "entry_range": [bottom, top],
+            "entry_mid": mid,
+            "stop_loss": sl,
+            "risk": risk,
+            "risk_pct": risk_pct,
+            "tp1": tp1,
+            "tp1_gain_pct": tp1_gain_pct,
+            "tp2": tp2,
+            "tp2_gain_pct": tp2_gain_pct,
+            "rr_label": "1:2 / 1:3"
+        }
+    elif ob_upper == "BEARISH":
+        # Protective buffer above OB top (at least 0.5% or 0.1)
+        buffer = max(spread * 0.2, mid * 0.005, 0.1)
+        sl = round(top + buffer, 2)
+        risk = round(sl - mid, 2)
+        if risk <= 0:
+            risk = round(max(mid * 0.01, 0.1), 2)
+            sl = round(mid + risk, 2)
+        
+        tp1 = round(max(0.1, mid - (2.0 * risk)), 2)
+        tp2 = round(max(0.1, mid - (3.0 * risk)), 2)
+        risk_pct = round((risk / mid) * 100.0, 2) if mid > 0 else 0
+        tp1_gain_pct = round(((mid - tp1) / mid) * 100.0, 2) if mid > 0 else 0
+        tp2_gain_pct = round(((mid - tp2) / mid) * 100.0, 2) if mid > 0 else 0
+        
+        return {
+            "direction": "SHORT",
+            "entry_range": [bottom, top],
+            "entry_mid": mid,
+            "stop_loss": sl,
+            "risk": risk,
+            "risk_pct": risk_pct,
+            "tp1": tp1,
+            "tp1_gain_pct": tp1_gain_pct,
+            "tp2": tp2,
+            "tp2_gain_pct": tp2_gain_pct,
+            "rr_label": "1:2 / 1:3"
+        }
+    return None
+

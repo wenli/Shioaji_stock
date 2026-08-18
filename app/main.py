@@ -266,9 +266,12 @@ def get_wishlist():
                     touch_type = "BEARISH"
                     active_touches.append(tf)
 
+                bullish_setup = smc_detector.calculate_trade_setup("BULLISH", bullish['top'], bullish['bottom']) if bullish else None
+                bearish_setup = smc_detector.calculate_trade_setup("BEARISH", bearish['top'], bearish['bottom']) if bearish else None
+
                 ob_status[tf] = {
-                    "bullish": {**bullish, "is_touching": bullish_touch} if bullish else None,
-                    "bearish": {**bearish, "is_touching": bearish_touch} if bearish else None,
+                    "bullish": {**bullish, "is_touching": bullish_touch, "trade_setup": bullish_setup} if bullish else None,
+                    "bearish": {**bearish, "is_touching": bearish_touch, "trade_setup": bearish_setup} if bearish else None,
                     "touch_type": touch_type
                 }
 
