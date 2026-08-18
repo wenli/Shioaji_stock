@@ -601,29 +601,108 @@
         }
 
         .ob-chip {
-            padding: 0.35rem 0.65rem;
-            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            border-radius: 10px;
             font-size: 0.8rem;
             font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            border: 1px solid transparent;
+            background: rgba(15, 23, 42, 0.6);
+            transition: all 0.2s ease;
+        }
+
+        .ob-chip:hover {
+            transform: translateY(-1px);
+        }
+
+        .ob-chip-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 0.5rem;
-            border: 1px solid transparent;
+            width: 100%;
+        }
+
+        .ob-entry-range {
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.78rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #f1f5f9;
         }
 
         .ob-chip.bullish {
-            background: rgba(0, 230, 118, 0.12);
+            background: rgba(0, 230, 118, 0.08);
             color: #00e676;
-            border-color: rgba(0, 230, 118, 0.35);
-            box-shadow: 0 0 10px rgba(0, 230, 118, 0.15);
+            border-color: rgba(0, 230, 118, 0.25);
+            box-shadow: 0 0 12px rgba(0, 230, 118, 0.08);
         }
 
         .ob-chip.bearish {
-            background: rgba(255, 51, 102, 0.12);
+            background: rgba(255, 51, 102, 0.08);
             color: #ff3366;
-            border-color: rgba(255, 51, 102, 0.35);
-            box-shadow: 0 0 10px rgba(255, 51, 102, 0.15);
+            border-color: rgba(255, 51, 102, 0.25);
+            box-shadow: 0 0 12px rgba(255, 51, 102, 0.08);
+        }
+
+        .trade-plan-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.35rem;
+            padding-top: 0.35rem;
+            border-top: 1px dashed rgba(255, 255, 255, 0.08);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+        }
+
+        .tp-pill {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3px 4px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            line-height: 1.25;
+            text-align: center;
+        }
+
+        .tp-pill .pill-label {
+            font-size: 0.62rem;
+            font-weight: 700;
+            opacity: 0.85;
+            letter-spacing: 0.5px;
+        }
+
+        .tp-pill .pill-val {
+            font-weight: 700;
+            font-size: 0.78rem;
+        }
+
+        .tp-pill .pill-pct {
+            font-size: 0.62rem;
+            opacity: 0.85;
+        }
+
+        .tp-pill.sl {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .tp-pill.tp1 {
+            background: rgba(0, 242, 254, 0.12);
+            border-color: rgba(0, 242, 254, 0.3);
+            color: #38bdf8;
+        }
+
+        .tp-pill.tp2 {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.35);
+            color: #34d399;
         }
 
         .radar-empty {
@@ -1221,18 +1300,70 @@
 
                     const label = tfLabels[tf];
                     if (info.bullish && info.bullish.is_touching) {
+                        const setup = info.bullish.trade_setup;
+                        let setupHTML = '';
+                        if (setup) {
+                            setupHTML = `
+                                <div class="trade-plan-bar">
+                                    <div class="tp-pill sl" title="保護停損點 (風險 -${setup.risk_pct}%)">
+                                        <span class="pill-label">SL 停損</span>
+                                        <span class="pill-val">${setup.stop_loss.toFixed(1)}</span>
+                                        <span class="pill-pct">-${setup.risk_pct}%</span>
+                                    </div>
+                                    <div class="tp-pill tp1" title="目標 1 (1:2 R:R, 預估 +${setup.tp1_gain_pct}%)">
+                                        <span class="pill-label">TP1 (1:2)</span>
+                                        <span class="pill-val">${setup.tp1.toFixed(1)}</span>
+                                        <span class="pill-pct">+${setup.tp1_gain_pct}%</span>
+                                    </div>
+                                    <div class="tp-pill tp2" title="目標 2 (1:3 R:R, 預估 +${setup.tp2_gain_pct}%)">
+                                        <span class="pill-label">TP2 (1:3)</span>
+                                        <span class="pill-val">${setup.tp2.toFixed(1)}</span>
+                                        <span class="pill-pct">+${setup.tp2_gain_pct}%</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
                         obBadgesHTML += `
                             <div class="ob-chip bullish">
-                                <span><i class="fa-solid fa-circle-arrow-up"></i> ${label} 多頭 OB</span>
-                                <span style="font-family: monospace; font-size: 0.75rem;">${info.bullish.bottom.toFixed(1)} ~ ${info.bullish.top.toFixed(1)}</span>
+                                <div class="ob-chip-header">
+                                    <span><i class="fa-solid fa-circle-arrow-up"></i> ${label} 多頭 OB</span>
+                                    <span class="ob-entry-range">進場: ${info.bullish.bottom.toFixed(1)} ~ ${info.bullish.top.toFixed(1)}</span>
+                                </div>
+                                ${setupHTML}
                             </div>
                         `;
                     }
                     if (info.bearish && info.bearish.is_touching) {
+                        const setup = info.bearish.trade_setup;
+                        let setupHTML = '';
+                        if (setup) {
+                            setupHTML = `
+                                <div class="trade-plan-bar">
+                                    <div class="tp-pill sl" title="保護停損點 (風險 -${setup.risk_pct}%)">
+                                        <span class="pill-label">SL 停損</span>
+                                        <span class="pill-val">${setup.stop_loss.toFixed(1)}</span>
+                                        <span class="pill-pct">-${setup.risk_pct}%</span>
+                                    </div>
+                                    <div class="tp-pill tp1" title="目標 1 (1:2 R:R, 預估 +${setup.tp1_gain_pct}%)">
+                                        <span class="pill-label">TP1 (1:2)</span>
+                                        <span class="pill-val">${setup.tp1.toFixed(1)}</span>
+                                        <span class="pill-pct">+${setup.tp1_gain_pct}%</span>
+                                    </div>
+                                    <div class="tp-pill tp2" title="目標 2 (1:3 R:R, 預估 +${setup.tp2_gain_pct}%)">
+                                        <span class="pill-label">TP2 (1:3)</span>
+                                        <span class="pill-val">${setup.tp2.toFixed(1)}</span>
+                                        <span class="pill-pct">+${setup.tp2_gain_pct}%</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
                         obBadgesHTML += `
                             <div class="ob-chip bearish">
-                                <span><i class="fa-solid fa-circle-arrow-down"></i> ${label} 空頭 OB</span>
-                                <span style="font-family: monospace; font-size: 0.75rem;">${info.bearish.bottom.toFixed(1)} ~ ${info.bearish.top.toFixed(1)}</span>
+                                <div class="ob-chip-header">
+                                    <span><i class="fa-solid fa-circle-arrow-down"></i> ${label} 空頭 OB</span>
+                                    <span class="ob-entry-range">進場: ${info.bearish.bottom.toFixed(1)} ~ ${info.bearish.top.toFixed(1)}</span>
+                                </div>
+                                ${setupHTML}
                             </div>
                         `;
                     }
