@@ -582,9 +582,18 @@
                         </div>
                     </div>
 
-                    <div class="form-group" style="margin-bottom: 1rem;">
-                        <label for="backtest-htf-window">HTF 日K回顧窗口 (天)</label>
-                        <input type="number" id="backtest-htf-window" required min="5" max="60" value="20">
+                    <div class="form-row" style="margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label for="backtest-htf-timeframe">HTF 高時框週期</label>
+                            <select id="backtest-htf-timeframe">
+                                <option value="1d">日K (1D)</option>
+                                <option value="60k">60分鐘K (60m)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="backtest-htf-window">HTF 回顧窗口 (根數/天)</label>
+                            <input type="number" id="backtest-htf-window" required min="5" max="120" value="20">
+                        </div>
                     </div>
 
                     <div class="form-group" id="entry-mode-group" style="margin-bottom: 1rem;">
@@ -758,6 +767,40 @@
             strategySelect.addEventListener('change', toggleEntryModeVisibility);
             toggleEntryModeVisibility(); // 初始化調用
 
+            // 監聽 HTF 週期變更與 LTF 回測分K防呆連動
+            const htfTimeframeSelect = document.getElementById('backtest-htf-timeframe');
+            const ltfTimeframeSelect = document.getElementById('backtest-timeframe');
+            const htfWindowInput = document.getElementById('backtest-htf-window');
+
+            function syncTimeframeConstraints() {
+                const htfVal = htfTimeframeSelect.value;
+                const opt60k = ltfTimeframeSelect.querySelector('option[value="60k"]');
+                
+                if (htfVal === '60k') {
+                    if (opt60k) {
+                        opt60k.disabled = true;
+                        opt60k.textContent = "60分鐘K (60m) - 不可大於/等於HTF";
+                    }
+                    if (ltfTimeframeSelect.value === '60k') {
+                        ltfTimeframeSelect.value = '15k';
+                    }
+                    if (htfWindowInput.value === '20') {
+                        htfWindowInput.value = '60';
+                    }
+                } else {
+                    if (opt60k) {
+                        opt60k.disabled = false;
+                        opt60k.textContent = "60分鐘K (60m)";
+                    }
+                    if (htfWindowInput.value === '60') {
+                        htfWindowInput.value = '20';
+                    }
+                }
+            }
+
+            htfTimeframeSelect.addEventListener('change', syncTimeframeConstraints);
+            syncTimeframeConstraints();
+
             // 綁定表單提交
             document.getElementById('backtest-form').addEventListener('submit', runBacktest);
         });
@@ -827,8 +870,9 @@
                 fee_discount: parseFloat(document.getElementById('backtest-fee-discount').value),
                 enable_short: document.getElementById('backtest-direction').value === 'both',
                 holding_mode: document.getElementById('backtest-holding').value,
+                htf_timeframe: document.getElementById('backtest-htf-timeframe').value,
                 ltf_timeframe: document.getElementById('backtest-timeframe').value,
-                strategy_name: document.getElementById('backtest-strategy').value
+                strategy_name: document.getElementById('backtest-strategy') ? document.getElementById('backtest-strategy').value : 'smc'
             };
 
             try {
