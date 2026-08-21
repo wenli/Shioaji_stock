@@ -27,9 +27,12 @@
    * 整合 `APScheduler` 背景排程管理，**週一至週五 13:40** (台股收盤後) 自動在背景執行一鍵同步，自動補齊所有追蹤股票當日最新行情。
    * 提供前端面盤一鍵手動同步按鈕，可異步喚醒背景同步。
 
-5. **📈 Lightweight-Charts 獨立多週期看盤新頁**
+5. **📈 Lightweight-Charts 交易終端極致滿版多週期看盤面盤 (`/chart/{code}`)**
    * 點擊追蹤表格中的股票，另開新分頁 (New Tab) 以 `/chart/{code}` 路由獨立展示該股的多週期趨勢。
-   * **2x2 四宮格量價共振**：在單一頁面同時呈現 **5M、15M、60M、日K** 四個週期的 K 線圖。
+   * **100vw × 100vh 極致滿版無留白**：徹底消除四周外距與寬度限制，以 2px 極細暗色分割線無縫緊貼排列，釋放螢幕所有像素給 K 線畫布。
+   * **42px 極簡 Slim 交易工具列**：將頂部 Header 壓縮為極薄 Toolbar，橫向整合股票資訊、SMC 開關與首頁快捷導航。
+   * **懸浮 Legend 資訊圖層**：週期標籤與 OHLCV 即時行情數據半透明懸浮於左上角，Canvas 縱向 100% 撐滿。
+   * **單圖一鍵放大／還原 (Maximize / Restore)**：每個圖表右上角皆提供展開按鈕（或按鍵盤 `Escape` 自動還原），可一鍵切換 100% 滿版單圖與 2x2 四宮格。
    * **量能疊加與台北時區防護**：底部疊加半透明的成交量 (Volume) 柱狀圖，並配置時區修正，使時間軸在世界任何地方均對齊台北時間 (UTC+8)。
 
 6. **📥 一鍵匯入 Yahoo 熱門成交股與 Web 控制設定**
@@ -79,135 +82,9 @@ c:\Intel\Shioaji_stock\
 │   ├── backtester.py        # 核心多策略回測引擎 (SMC, EMA, BB, KD)
 │   └── smc_detector.py      # SMC Order Block 識別、未緩解過濾與多週期快取模組
 ├── frontend/
-│   ├── index.html           # 現代分段卡片式 (Tab Pages) Dashboard 首頁
-│   ├── chart.html           # 獨立 2x2 多週期看盤面盤 (K線 + 成交量)
-│   └── backtest.html        # 多策略量化回測與指標分析面板
-├── docs/
-│   ├── user_guide.md        # 系統使用與操作手冊
-│   ├── best_taiwan_strategy_report.md # 台股最佳策略大評比研究報告
-│   ├── smc_strategy_report.md         # SMC 策略優化分析報告
-│   └── specs/
-│       └── ob_radar_feature_spec.md   # Order Block 即時雷達功能規格書
-├── scratch/
-│   ├── optimize_smc.py      # SMC 策略多股票網格參數優化搜尋腳本
-│   ├── strategy_tournament.py # 四大策略在台股市場同台競技對比腳本
-│   ├── test_backtest.py     # 回測引擎底層雙向與波段機制驗證腳本
-│   └── api_test_multi.py    # 自動化測試 FastAPI 與多策略 API 整合驗證腳本
-├── .env                     # 環境變數與 Shioaji 金鑰
-├── config.json              # 儲存當前啟用的 active_source (shioaji/yahoo)
-├── Shioaji.db               # Shioaji 模式 SQLite 資料庫 (自動建立)
-├── Y.db                     # Yahoo 模式 SQLite 資料庫 (自動建立)
-├── requirements.txt         # 專案套件依賴
-└── README.md                # 本說明文件
-```
-
----
-
-## ⚙️ 安裝與設定環境
-
-### 1. 安裝套件依賴
-建議在專案目錄下使用您的 Python 環境安裝依賴：
-```bash
-pip install -r requirements.txt
-```
-
-### 2. 配置環境變數 `.env`
-於專案根目錄下建立 `.env` 檔案，配置您的 Shioaji 憑證與起始下載範圍：
-
-```env
-# Shioaji API 帳號與密鑰
-SHIOAJI_API_KEY="您的_shioaji_api_key"
-SHIOAJI_SECRET_KEY="您的_shioaji_secret_key"
-
-# 模擬(simulation)或實盤(production)模式
-SHIOAJI_ENV="simulation"
-
-# 預設資料庫 (SQLite) 名稱
-DB_NAME="Shioaji.db"
-
-# 當新增一檔全新股票且資料表全空時，預設向前回溯下載的天數 (建議 360 天以利歷史回測)
-DEFAULT_START_DAYS=360
-
-# Yahoo 熱門股匯入設定
-YAHOO_IMPORT_MAX_PRICE=150  # 股價上限
-YAHOO_IMPORT_LIMIT=50       # 排行抓取數量
-
-# Yahoo 首次同步回溯天數 (天)
-YAHOO_60K_BACKTRACK_DAYS=365   # 60分K預設回溯 1 年
-YAHOO_1D_BACKTRACK_DAYS=1825   # 日K預設回溯 5 年
-```
-
----
-
-## 🚀 啟動方式
-
-確保 `.env` 配置正確後，執行主入口腳本：
-
-```bash
-python app/main.py
-```
-
-* **Web 面盤網址**: **`http://127.0.0.1:8001/`**
-  * *連接埠已預設為 `8001`，以避免與其他服務衝突。*
-
-* **量化策略研究報告**：
-  * **[台股最佳交易策略大評比研究報告](docs/best_taiwan_strategy_report.md)**：詳細分析了台股高頻交易中的「摩擦成本陷阱」與各策略在台股的生存表現。
-  * **[SMC 策略優化分析報告](docs/smc_strategy_report.md)**：探討 SMC 策略最合適台股之參數設定。
-
----
-
-## 🗄️ 資料庫 Schema 說明
-
-資料庫 `Shioaji.db` (或 `Y.db`) 在服務初次啟動時會自動完成初始化與表格建立。
-
-### 1. 願望清單表 `wish_list`
-| 欄位名 | 類型 | 說明 |
-| :--- | :--- | :--- |
-| `code` | TEXT (PK) | 股票代碼 (如 `2330`) |
-| `name` | TEXT | 股票名稱 (如 `台積電`) |
-| `created_at` | TIMESTAMP | 新增至清單的時間 |
-| `status` | TEXT | 同步狀態 (`active` / `paused`) |
-| `last_sync_ts` | TIMESTAMP | 上次成功同步 1K 的最新時間戳 |
-
-### 2. 各週期 K 線數據表 (`stock1k`, `stock5k`, `stock15k`, `stock30k`, `stock60k`, `stock1d`)
-各週期表格欄位皆一致，聯合主鍵為 `PRIMARY KEY (code, ts)`：
-* `code` (TEXT) - 股票代碼
-* `ts` (TIMESTAMP) - K 線時間戳（`YYYY-MM-DD HH:MM:SS`）
-* `open` / `high` / `low` / `close` (REAL) - 開高低收點位
-* `volume` (INTEGER) - 該根 K 棒的累積成交股數
-
-### 3. 多週期 Order Block 快取表 `stock_order_blocks`
-聯合主鍵為 `PRIMARY KEY (code, timeframe, ob_type)`：
-* `code` (TEXT) - 股票代碼
-* `timeframe` (TEXT) - 週期（`5k`, `15k`, `60k`, `1d`）
-* `ob_type` (TEXT) - 訂單塊屬性（`BULLISH` / `BEARISH`）
-* `top_price` / `bottom_price` (REAL) - OB 價格區間上下界
-* `ob_time` (TEXT) - OB 產生之 K 線時間戳
-* `updated_at` (TIMESTAMP) - 最後快取更新時間戳
-
----
-
-## 🔗 APIs 端點參考
-
-| 方法 | 端點 | 說明 |
-| :--- | :--- | :--- |
-| `GET` | `/` | 渲染 Web Dashboard 首頁 UI (Segmented Tab Pages) |
-| `GET` | `/api/status` | 讀取 Shioaji 連線狀態 |
-| `GET` | `/api/wishlist` | 獲取清單中所有股票狀態、即時價格/漲跌幅與 5M/15M/60M/1D OB 監控數據 |
-| `GET` | `/api/ob-radar` | 獲取當前所有觸及關鍵 5M/15M/60M/1D Order Block 的個股清單 |
-| `POST` | `/api/wishlist` | 新增股票代碼並於背景觸發該股歷史數據下載與 OB 快取 |
-| `DELETE` | `/api/wishlist/{code}`| 將股票自清單移除並清除其歷史 K 線與 OB 快取資料 |
-| `POST` | `/api/sync` | 背景手動觸發一鍵 Full-Sync 下載同步與 OB 更新 (斷點續傳) |
-| `GET` | `/api/settings/yahoo` | 獲取當前記憶體中的 Yahoo 熱門股匯入設定值 |
-| `POST` | `/api/settings/yahoo` | 更新 Yahoo 熱門股匯入設定值並寫入持久化至 `.env` |
-| `POST` | `/api/import_yahoo` | 爬取 Yahoo 成交量排行並匯入 wish list 進行背景同步 |
-| `GET` | `/api/config/source` | 獲取當前啟用的資料來源與資料庫狀態 |
-| `POST` | `/api/config/source` | 切換資料來源與資料庫 (shioaji/yahoo) 並初始化 DB |
-| `POST` | `/api/backtest` | **執行指定個股之特定量化策略（SMC/EMA/BB/KD）歷史回測** |
-| `GET` | `/api/kbars/{code}` | 讀取單檔股票特定週期歷史數據，提供看盤圖表繪製 |
-| `GET` | `/chart/{code}` | 渲染獨立的 2x2 四宮格 K 線量能看盤頁面 |
+│   ├── index.html           # 現代分段| `GET` | `/chart/{code}` | 渲染極致滿版 (100vw/100vh) 的多週期 K 線看盤終端 (支援單圖一鍵放大) |
 | `GET` | `/api/stock/{code}` | 獲取特定個股合約名稱（整合 Shioaji 與 DB Fallback 查詢機制） |
-| `GET` | `/api/kbars/multi/{code}`| 一鍵查詢單檔股票多週期 (5K, 15K, 60K, 日K) 的量價數據 |
+| `GET` | `/api/kbars/multi/{code}`| 一鍵查詢單檔股票多週期 (5K, 15K, 60K, 日K) 的量價數據與標準 SMC OB 區間 |
 
 ---
 
@@ -288,4 +165,11 @@ python app/main.py
 12. **📑 現代分段卡片式 Tab 儀表板架構 (Segmented Card Tabs)**：
     * 首頁儀表板重構為【📋 股票追蹤清單】、【🎯 OB 即時雷達】、【⚙️ 系統與匯入設定】三大 Tab 分頁。
     * Tab 標籤整合動態數量徽章與呼吸光暈，並支援 URL Hash (`#wishlist`, `#radar`, `#settings`) 與狀態持久化。
+13. **🖥️ 多週期看盤圖表極致滿版升級 (100vw × 100vh & 單圖一鍵放大)**：
+    * 徹底消除外層 1600px 寬度與 padding 限制，圖表以 2px 極細暗色分割線無縫鋪滿整個視窗。
+    * 頂部採用 42px 極簡 Slim Toolbar，OHLCV 與週期資訊轉為左上角半透明懸浮 Legend，畫布高度 100% 撐滿。
+    * 新增單圖放大 (Maximize / Restore) 功能與鍵盤 Escape 一鍵還原，支援單週期全螢幕沉浸式分析。
+14. **🎯 全系統 SMC Order Block (OB) 演算法與數據來源 100% 完全對齊**：
+    * /api/kbars/multi/{code} API 整合 [smc_detector.py](file:///c:/Intel/Shioaji_stock/app/smc_detector.py) 計算，回傳標準 SMC OB 區間。
+    * 前端圖表 [chart.html](file:///c:/Intel/Shioaji_stock/frontend/chart.html) 與後端演算法全面對齊（Swing High/Low + BOS 結構突破 + 未緩解過濾），使【首頁雷達】、【策略回測】與【多週期圖表】呈現的 OB 色塊與價格區間完全一致。
 
