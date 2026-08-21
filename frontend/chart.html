@@ -15,7 +15,7 @@
     <style>
         :root {
             --bg-color: #0b0c10;
-            --card-bg: rgba(22, 26, 37, 0.65);
+            --card-bg: rgba(22, 26, 37, 0.8);
             --border-color: rgba(255, 255, 255, 0.08);
             --text-primary: #f1f5f9;
             --text-secondary: #94a3b8;
@@ -31,240 +31,145 @@
             padding: 0;
         }
 
-        body {
-            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
-            background: radial-gradient(circle at top right, #1b2030 0%, #08090c 70%);
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #0b0c10;
             color: var(--text-primary);
-            min-height: 100vh;
-            padding: 1.5rem;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container {
-            width: 100%;
-            max-width: 1600px;
-            height: 95vh;
+            width: 100vw;
+            height: 100vh;
+            max-width: 100vw;
+            margin: 0;
+            padding: 0;
             display: flex;
             flex-direction: column;
-            gap: 1.25rem;
+            gap: 0;
+            overflow: hidden;
         }
 
-        /* Header Style */
+        /* 42px Slim Trading Toolbar */
         header {
+            height: 42px;
+            min-height: 42px;
+            max-height: 42px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1.25rem 2rem;
-            background: var(--card-bg);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+            padding: 0 0.85rem;
+            background: rgba(14, 18, 26, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            border-radius: 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
             flex-shrink: 0;
+            z-index: 100;
         }
 
         .header-title-section {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.6rem;
         }
 
         .logo-glow {
-            width: 42px;
-            height: 42px;
-            border-radius: 10px;
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
             background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
-            font-size: 1.25rem;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.35);
+            font-size: 0.85rem;
             color: #fff;
+            flex-shrink: 0;
         }
 
         .header-title-section h1 {
-            font-size: 1.5rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            background: linear-gradient(to right, #ffffff, #94a3b8);
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: -0.2px;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            margin: 0;
+            line-height: 1.2;
+            white-space: nowrap;
         }
 
         .header-title-section p {
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: var(--text-secondary);
+            margin: 0;
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
         }
 
         .back-btn {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.6rem 1.2rem;
-            border-radius: 10px;
+            gap: 0.35rem;
+            padding: 0.3rem 0.75rem;
+            border-radius: 6px;
             border: 1px solid var(--border-color);
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.04);
             color: var(--text-primary);
             font-weight: 600;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             text-decoration: none;
+            height: 28px;
+            line-height: 1;
         }
 
         .back-btn:hover {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.1);
             border-color: var(--neon-blue);
-            box-shadow: 0 0 12px rgba(0, 242, 254, 0.15);
-            transform: translateY(-1px);
-        }
-
-        /* 2x2 CSS Grid */
-        .chart-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: repeat(2, 1fr);
-            gap: 1rem;
-            width: 100%;
-            height: 100%;
-            min-height: 0;
-            flex-grow: 1;
-        }
-
-        .chart-card-mini {
-            background: var(--card-bg);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--border-color);
-            border-radius: 18px;
-            padding: 0.75rem 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            position: relative;
-            overflow: hidden;
-            height: 100%;
-            min-height: 0;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-        }
-
-        .chart-mini-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-            padding-bottom: 0.4rem;
-            z-index: 10;
-        }
-
-        .chart-mini-title {
-            font-weight: 700;
-            font-size: 0.95rem;
-            letter-spacing: 0.2px;
-            display: flex;
-            align-items: center;
-            color: var(--text-primary);
-        }
-
-        .price-lbl-info {
-            font-size: 0.78rem;
-            color: var(--text-secondary);
-            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
-            letter-spacing: 0.2px;
-        }
-
-        .chart-canvas-container {
-            flex-grow: 1;
-            width: 100%;
-            min-height: 120px;
-            position: relative;
-            border-radius: 10px;
-            overflow: hidden;
-            background-color: #131722;
-            border: 1px solid rgba(255, 255, 255, 0.02);
-        }
-
-        /* Toast */
-        .toast {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            background: #1e293b;
-            border: 1px solid var(--border-color);
-            padding: 1rem 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            transform: translateY(150%);
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 200;
-        }
-
-        .toast.active {
-            transform: translateY(0);
-        }
-
-        .toast-icon {
-            font-size: 1.25rem;
-        }
-
-        .toast-error .toast-icon { color: var(--neon-red); }
-
-        /* Mobile layout RWD */
-        @media (max-width: 768px) {
-            body {
-                padding: 0.75rem;
-            }
-            .container {
-                height: auto;
-                gap: 0.75rem;
-            }
-            .chart-grid {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto;
-                overflow-y: visible;
-            }
-            .chart-card-mini {
-                height: 320px;
-                flex-shrink: 0;
-            }
+            box-shadow: 0 0 8px rgba(0, 242, 254, 0.2);
         }
 
         /* SMC Control Group styling */
         .smc-control-container {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            padding: 0.5rem 1rem;
-            border-radius: 12px;
+            gap: 0.45rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 6px;
             border: 1px solid var(--border-color);
             background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(8px);
-            transition: all 0.3s ease;
-        }
-
-        .smc-control-container:hover {
-            border-color: rgba(0, 242, 254, 0.3);
-            box-shadow: 0 0 10px rgba(0, 242, 254, 0.08);
+            height: 28px;
         }
 
         .smc-label {
-            font-size: 0.85rem;
+            font-size: 0.78rem;
             font-weight: 600;
             color: var(--text-secondary);
             display: flex;
             align-items: center;
+            user-select: none;
         }
 
         /* Toggle Switch Custom */
         .switch {
             position: relative;
             display: inline-block;
-            width: 38px;
-            height: 20px;
+            width: 32px;
+            height: 17px;
         }
 
         .switch input {
@@ -280,54 +185,227 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(255, 255, 255, 0.1);
-            transition: .3s;
-            border-radius: 20px;
+            background-color: rgba(255, 255, 255, 0.12);
+            transition: .25s;
+            border-radius: 17px;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .slider:before {
             position: absolute;
             content: "";
-            height: 14px;
-            width: 14px;
+            height: 11px;
+            width: 11px;
             left: 2px;
             bottom: 2px;
             background-color: var(--text-primary);
-            transition: .3s;
+            transition: .25s;
             border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
         }
 
         input:checked + .slider {
-            background-color: rgba(0, 242, 254, 0.2);
+            background-color: rgba(0, 242, 254, 0.25);
             border-color: var(--neon-blue);
         }
 
         input:checked + .slider:before {
-            transform: translateX(18px);
+            transform: translateX(15px);
             background-color: var(--neon-blue);
-            box-shadow: 0 0 8px var(--neon-blue);
+            box-shadow: 0 0 6px var(--neon-blue);
+        }
+
+        /* 2x2 Seamless Full-Screen Grid (2px splitter) */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 2px;
+            width: 100vw;
+            height: calc(100vh - 42px);
+            background: #060709;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chart-card-mini {
+            background: #131722;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            display: block;
+        }
+
+        /* Maximized Single Chart Mode */
+        .chart-grid.maximized .chart-card-mini {
+            display: none !important;
+        }
+
+        .chart-grid.maximized .chart-card-mini.is-maximized {
+            display: block !important;
+            grid-column: 1 / -1;
+            grid-row: 1 / -1;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+        }
+
+        /* Floating Overlay for Timeframe & OHLCV */
+        .chart-floating-overlay {
+            position: absolute;
+            top: 6px;
+            left: 8px;
+            z-index: 25;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(15, 20, 30, 0.72);
+            backdrop-filter: blur(8px);
+            padding: 3px 8px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            max-width: calc(100% - 100px);
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .chart-floating-title {
+            font-weight: 700;
+            font-size: 0.8rem;
+            letter-spacing: 0.2px;
+            display: inline-flex;
+            align-items: center;
+            color: var(--text-primary);
+            flex-shrink: 0;
+        }
+
+        .price-lbl-info {
+            font-size: 0.74rem;
+            color: var(--text-secondary);
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            letter-spacing: 0.1px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Chart Control Buttons (Maximize) */
+        .chart-control-buttons {
+            position: absolute;
+            top: 6px;
+            right: 58px; /* Avoid overlapping TradingView price scale */
+            z-index: 25;
+            display: flex;
+            gap: 4px;
+        }
+
+        .chart-action-btn {
+            background: rgba(19, 23, 34, 0.75);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.72rem;
+            transition: all 0.2s ease;
+        }
+
+        .chart-action-btn:hover {
+            background: rgba(0, 242, 254, 0.2);
+            color: #fff;
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 6px rgba(0, 242, 254, 0.3);
+        }
+
+        .chart-canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            border: none;
+            border-radius: 0;
+            overflow: hidden;
+            background-color: #131722;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            transform: translateY(150%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 200;
+            font-size: 0.85rem;
+        }
+
+        .toast.active {
+            transform: translateY(0);
+        }
+
+        .toast-icon {
+            font-size: 1.1rem;
+        }
+
+        .toast-error .toast-icon { color: var(--neon-red); }
+
+        /* Mobile layout RWD */
+        @media (max-width: 768px) {
+            html, body {
+                overflow-y: auto;
+            }
+            .container {
+                height: auto;
+            }
+            .chart-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+                height: auto;
+                overflow-y: visible;
+            }
+            .chart-card-mini {
+                height: 340px;
+                flex-shrink: 0;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
+        <!-- Compact Slim Header (42px) -->
         <header>
             <div class="header-title-section">
                 <div class="logo-glow">
                     <i class="fa-solid fa-chart-line"></i>
                 </div>
-                <div>
-                    <h1 id="stock-title">載入中...</h1>
-                    <p id="stock-subtitle">多週期量價共振 K 線圖</p>
-                </div>
+                <h1 id="stock-title">載入中...</h1>
+                <p id="stock-subtitle">多週期量價圖</p>
             </div>
-            <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="header-actions">
                 <div class="smc-control-container">
                     <span class="smc-label">
-                        <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--neon-blue); margin-right: 6px;"></i>SMC 區間
+                        <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--neon-blue); margin-right: 4px;"></i>SMC
                     </span>
                     <label class="switch">
                         <input type="checkbox" id="smc-toggle" checked>
@@ -335,42 +413,62 @@
                     </label>
                 </div>
                 <a href="/" class="back-btn">
-                    <i class="fa-solid fa-house"></i> 回首頁
+                    <i class="fa-solid fa-house"></i> 首頁
                 </a>
             </div>
         </header>
 
-        <!-- Charts Grid -->
+        <!-- Charts Grid (100% borderless, max area) -->
         <div id="chart-grid-container" class="chart-grid">
             <!-- 5K Chart -->
-            <div class="chart-card-mini">
-                <div class="chart-mini-header">
-                    <span class="chart-mini-title"><i class="fa-solid fa-bolt" style="color: var(--neon-blue); margin-right: 6px;"></i>5M 趨勢</span>
+            <div id="chart-card-5k" class="chart-card-mini">
+                <div class="chart-floating-overlay">
+                    <span class="chart-floating-title"><i class="fa-solid fa-bolt" style="color: var(--neon-blue); margin-right: 4px;"></i>5M</span>
                     <span id="price-lbl-5k" class="price-lbl-info">--</span>
+                </div>
+                <div class="chart-control-buttons">
+                    <button id="btn-max-5k" class="chart-action-btn btn-max" title="單圖放大/還原" onclick="toggleMaximize('5k')">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
                 </div>
                 <div id="canvas-5k" class="chart-canvas-container"></div>
             </div>
             <!-- 15K Chart -->
-            <div class="chart-card-mini">
-                <div class="chart-mini-header">
-                    <span class="chart-mini-title"><i class="fa-solid fa-rabbit" style="color: var(--neon-purple); margin-right: 6px;"></i>15M 趨勢</span>
+            <div id="chart-card-15k" class="chart-card-mini">
+                <div class="chart-floating-overlay">
+                    <span class="chart-floating-title"><i class="fa-solid fa-rabbit" style="color: var(--neon-purple); margin-right: 4px;"></i>15M</span>
                     <span id="price-lbl-15k" class="price-lbl-info">--</span>
+                </div>
+                <div class="chart-control-buttons">
+                    <button id="btn-max-15k" class="chart-action-btn btn-max" title="單圖放大/還原" onclick="toggleMaximize('15k')">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
                 </div>
                 <div id="canvas-15k" class="chart-canvas-container"></div>
             </div>
             <!-- 60K Chart -->
-            <div class="chart-card-mini">
-                <div class="chart-mini-header">
-                    <span class="chart-mini-title"><i class="fa-solid fa-hourglass" style="color: var(--neon-red); margin-right: 6px;"></i>60M 趨勢</span>
+            <div id="chart-card-60k" class="chart-card-mini">
+                <div class="chart-floating-overlay">
+                    <span class="chart-floating-title"><i class="fa-solid fa-hourglass" style="color: var(--neon-red); margin-right: 4px;"></i>60M</span>
                     <span id="price-lbl-60k" class="price-lbl-info">--</span>
+                </div>
+                <div class="chart-control-buttons">
+                    <button id="btn-max-60k" class="chart-action-btn btn-max" title="單圖放大/還原" onclick="toggleMaximize('60k')">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
                 </div>
                 <div id="canvas-60k" class="chart-canvas-container"></div>
             </div>
             <!-- 1D Chart -->
-            <div class="chart-card-mini">
-                <div class="chart-mini-header">
-                    <span class="chart-mini-title"><i class="fa-solid fa-calendar" style="color: var(--neon-green); margin-right: 6px;"></i>日K 趨勢</span>
+            <div id="chart-card-1d" class="chart-card-mini">
+                <div class="chart-floating-overlay">
+                    <span class="chart-floating-title"><i class="fa-solid fa-calendar" style="color: var(--neon-green); margin-right: 4px;"></i>日K</span>
                     <span id="price-lbl-1d" class="price-lbl-info">--</span>
+                </div>
+                <div class="chart-control-buttons">
+                    <button id="btn-max-1d" class="chart-action-btn btn-max" title="單圖放大/還原" onclick="toggleMaximize('1d')">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
                 </div>
                 <div id="canvas-1d" class="chart-canvas-container"></div>
             </div>
@@ -443,17 +541,20 @@
             }
         }
 
-        // Calculate SMC Indicators: FVG & OB
-        function calculateSMCIndicators(kbars) {
-            if (kbars.length < 3) {
+        let backendOBs = { '5k': {}, '15k': {}, '60k': {}, '1d': {} };
+
+        // Calculate SMC Indicators: Standard SMC (Swing High/Low, BOS, Displacement) & FVG
+        function calculateSMCIndicators(kbars, swingWindow = 3) {
+            if (!kbars || kbars.length < 5) {
                 return { fvgs: [], obs: [] };
             }
 
             const fvgs = [];
             const obs = [];
+            const n = kbars.length;
 
             // 1. Calculate Fair Value Gaps (FVG)
-            for (let i = 2; i < kbars.length; i++) {
+            for (let i = 2; i < n; i++) {
                 const prev2 = kbars[i - 2];
                 const prev1 = kbars[i - 1];
                 const curr = kbars[i];
@@ -486,7 +587,7 @@
                 const startIndex = kbars.findIndex(k => k.time === fvg.startTime);
                 if (startIndex === -1) continue;
 
-                for (let j = startIndex + 1; j < kbars.length; j++) {
+                for (let j = startIndex + 1; j < n; j++) {
                     const checkBar = kbars[j];
                     if (fvg.type === 'bullish') {
                         if (checkBar.low < fvg.bottom) {
@@ -502,50 +603,122 @@
                 }
             }
 
-            // 2. Calculate Order Blocks (OB)
-            const bodySizes = kbars.map(k => Math.abs(k.close - k.open));
-            
-            for (let i = 1; i < kbars.length; i++) {
-                const startIdx = Math.max(0, i - 20);
-                const slicedBodies = bodySizes.slice(startIdx, i);
-                const avgBody = slicedBodies.reduce((sum, val) => sum + val, 0) / (slicedBodies.length || 1);
+            // 2. Standard SMC: Swing High / Swing Low Detection
+            const swingHighs = [];
+            const swingLows = [];
+            const w = swingWindow;
 
-                const curr = kbars[i];
-                const prev = kbars[i - 1];
-                const currBody = Math.abs(curr.close - curr.open);
+            for (let i = w; i < n - w; i++) {
+                const currentHigh = kbars[i].high;
+                const currentLow = kbars[i].low;
 
-                // Check for momentum expansion (curr candle > 1.5x average body)
-                if (currBody > 1.5 * avgBody) {
-                    // Bullish OB: strong green candle, previous was red
-                    if (curr.close > curr.open && prev.close < prev.open) {
-                        obs.push({
-                            type: 'bullish',
-                            top: prev.high,
-                            bottom: prev.low,
-                            startTime: prev.time,
-                            mitigated: false
-                        });
+                let isSH = true;
+                let isSL = true;
+                for (let offset = 1; offset <= w; offset++) {
+                    if (kbars[i - offset].high >= currentHigh || kbars[i + offset].high > currentHigh) {
+                        isSH = false;
                     }
-                    // Bearish OB: strong red candle, previous was green
-                    else if (curr.close < curr.open && prev.close > prev.open) {
-                        obs.push({
-                            type: 'bearish',
-                            top: prev.high,
-                            bottom: prev.low,
-                            startTime: prev.time,
-                            mitigated: false
-                        });
+                    if (kbars[i - offset].low <= currentLow || kbars[i + offset].low < currentLow) {
+                        isSL = false;
+                    }
+                }
+                if (isSH) swingHighs.push({ index: i, high: currentHigh });
+                if (isSL) swingLows.push({ index: i, low: currentLow });
+            }
+
+            // 3. BOS & Order Block Extraction
+            // 3a. Bullish BOS: Break above swing high -> find lowest down-close candle
+            swingHighs.forEach(sh => {
+                for (let i = sh.index + 1; i < n; i++) {
+                    if (kbars[i].close > sh.high) {
+                        const searchStart = Math.max(0, sh.index);
+                        let lowestDown = null;
+                        for (let j = searchStart; j < i; j++) {
+                            const bar = kbars[j];
+                            if (bar.close < bar.open) {
+                                if (!lowestDown || bar.low < lowestDown.low) {
+                                    lowestDown = bar;
+                                }
+                            }
+                        }
+                        if (lowestDown) {
+                            obs.push({
+                                type: 'bullish',
+                                top: lowestDown.high,
+                                bottom: lowestDown.low,
+                                startTime: lowestDown.time,
+                                mitigated: false
+                            });
+                        }
+                        break;
+                    }
+                }
+            });
+
+            // 3b. Bearish BOS: Break below swing low -> find highest up-close candle
+            swingLows.forEach(sl => {
+                for (let i = sl.index + 1; i < n; i++) {
+                    if (kbars[i].close < sl.low) {
+                        const searchStart = Math.max(0, sl.index);
+                        let highestUp = null;
+                        for (let j = searchStart; j < i; j++) {
+                            const bar = kbars[j];
+                            if (bar.close > bar.open) {
+                                if (!highestUp || bar.high > highestUp.high) {
+                                    highestUp = bar;
+                                }
+                            }
+                        }
+                        if (highestUp) {
+                            obs.push({
+                                type: 'bearish',
+                                top: highestUp.high,
+                                bottom: highestUp.low,
+                                startTime: highestUp.time,
+                                mitigated: false
+                            });
+                        }
+                        break;
+                    }
+                }
+            });
+
+            // 3c. Fallback: Momentum Displacement if no Swing BOS OB found
+            if (obs.length === 0) {
+                for (let i = 3; i < n; i++) {
+                    if (kbars[i].close > kbars[i].open && kbars[i-1].close > kbars[i-1].open) {
+                        if (kbars[i-2].close < kbars[i-2].open) {
+                            const obBar = kbars[i-2];
+                            obs.push({
+                                type: 'bullish',
+                                top: obBar.high,
+                                bottom: obBar.low,
+                                startTime: obBar.time,
+                                mitigated: false
+                            });
+                        }
+                    } else if (kbars[i].close < kbars[i].open && kbars[i-1].close < kbars[i-1].open) {
+                        if (kbars[i-2].close > kbars[i-2].open) {
+                            const obBar = kbars[i-2];
+                            obs.push({
+                                type: 'bearish',
+                                top: obBar.high,
+                                bottom: obBar.low,
+                                startTime: obBar.time,
+                                mitigated: false
+                            });
+                        }
                     }
                 }
             }
 
-            // OB Mitigation check
+            // 4. OB Mitigation check
             for (let i = 0; i < obs.length; i++) {
                 const ob = obs[i];
                 const startIndex = kbars.findIndex(k => k.time === ob.startTime);
                 if (startIndex === -1) continue;
 
-                for (let j = startIndex + 1; j < kbars.length; j++) {
+                for (let j = startIndex + 1; j < n; j++) {
                     const checkBar = kbars[j];
                     if (ob.type === 'bullish') {
                         if (checkBar.low < ob.bottom) {
@@ -819,6 +992,34 @@
             const lastBar = kbars[kbars.length - 1];
             const rayEnd = lastBar.time;
 
+            // 優先合併後端標準 SMC 雷達 OB (若後端有回傳標準 OB)
+            const bOB = backendOBs[key] || {};
+            if (bOB.bullish) {
+                const bTime = getCorrectedUnixTimestamp(bOB.bullish.time);
+                // 檢查是否已存在相同 start time 的 OB，若無則插入
+                if (!obs.some(o => o.type === 'bullish' && Math.abs(o.startTime - bTime) < 300)) {
+                    obs.push({
+                        type: 'bullish',
+                        top: bOB.bullish.top,
+                        bottom: bOB.bullish.bottom,
+                        startTime: bTime,
+                        mitigated: false
+                    });
+                }
+            }
+            if (bOB.bearish) {
+                const bTime = getCorrectedUnixTimestamp(bOB.bearish.time);
+                if (!obs.some(o => o.type === 'bearish' && Math.abs(o.startTime - bTime) < 300)) {
+                    obs.push({
+                        type: 'bearish',
+                        top: bOB.bearish.top,
+                        bottom: bOB.bearish.bottom,
+                        startTime: bTime,
+                        mitigated: false
+                    });
+                }
+            }
+
             // Draw FVGs (Dashed border, lighter fill)
             fvgs.forEach(fvg => {
                 const isBull = fvg.type === 'bullish';
@@ -875,8 +1076,12 @@
                     priceLineVisible: false
                 });
 
+                // 若 OB 發生時間早於第一根 bar，則從第一根 bar 開始畫
+                const firstBarTime = kbars[0].time;
+                const validStartTime = Math.max(firstBarTime, ob.startTime);
+
                 sFill.setData([
-                    { time: ob.startTime, value: fillVal },
+                    { time: validStartTime, value: fillVal },
                     { time: rayEnd, value: fillVal }
                 ]);
 
@@ -1098,6 +1303,7 @@
                 
                 if (resData.success) {
                     const data = resData.data;
+                    backendOBs = resData.obs || {};
                     
                     chartKeys.forEach(key => {
                         const kbars = data[key] || [];
@@ -1167,6 +1373,66 @@
                 showToast("與伺服器通訊錯誤，載入 K 線失敗。");
             }
         }
+
+        // Toggle single chart maximize / restore 2x2 grid
+        function toggleMaximize(key) {
+            const grid = document.getElementById('chart-grid-container');
+            const card = document.getElementById(`chart-card-${key}`);
+            if (!grid || !card) return;
+
+            const isCurrentlyMaximized = card.classList.contains('is-maximized');
+
+            // Reset all cards & button icons
+            document.querySelectorAll('.chart-card-mini').forEach(c => {
+                c.classList.remove('is-maximized');
+            });
+            document.querySelectorAll('.btn-max i').forEach(icon => {
+                icon.className = 'fa-solid fa-expand';
+            });
+
+            if (!isCurrentlyMaximized) {
+                grid.classList.add('maximized');
+                card.classList.add('is-maximized');
+                const btnIcon = document.querySelector(`#btn-max-${key} i`);
+                if (btnIcon) {
+                    btnIcon.className = 'fa-solid fa-compress';
+                }
+            } else {
+                grid.classList.remove('maximized');
+            }
+
+            // Trigger resize for all active charts after DOM layout settles
+            setTimeout(() => {
+                chartKeys.forEach(k => {
+                    const container = document.getElementById(`canvas-${k}`);
+                    if (charts[k] && container && container.clientWidth > 0) {
+                        charts[k].resize(container.clientWidth, container.clientHeight);
+                    }
+                });
+            }, 60);
+        }
+
+        // Press Escape to restore 2x2 grid if maximized
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const grid = document.getElementById('chart-grid-container');
+                if (grid && grid.classList.contains('maximized')) {
+                    document.querySelectorAll('.chart-card-mini').forEach(c => c.classList.remove('is-maximized'));
+                    document.querySelectorAll('.btn-max i').forEach(icon => {
+                        icon.className = 'fa-solid fa-expand';
+                    });
+                    grid.classList.remove('maximized');
+                    setTimeout(() => {
+                        chartKeys.forEach(k => {
+                            const container = document.getElementById(`canvas-${k}`);
+                            if (charts[k] && container && container.clientWidth > 0) {
+                                charts[k].resize(container.clientWidth, container.clientHeight);
+                            }
+                        });
+                    }, 60);
+                }
+            }
+        });
     </script>
 </body>
 </html>

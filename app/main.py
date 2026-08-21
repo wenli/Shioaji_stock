@@ -639,10 +639,27 @@ def get_multi_kbars(code: str, limit: int = 1000, anchor_time: str = None):
                 
             result[tf] = [dict(row) for row in rows]
             
+        # 計算各週期的標準 SMC Order Blocks (與 OB 雷達和策略回測 100% 完全一致)
+        obs_result = {}
+        for tf in timeframes:
+            kbars = result.get(tf, [])
+            if len(kbars) >= 10:
+                df_tf = pd.DataFrame(kbars)
+                if 'time' in df_tf.columns and 'ts' not in df_tf.columns:
+                    df_tf['ts'] = df_tf['time']
+                ob_data = smc_detector.detect_order_blocks(df_tf, timeframe=tf)
+                obs_result[tf] = {
+                    "bullish": ob_data.get("bullish_ob"),
+                    "bearish": ob_data.get("bearish_ob")
+                }
+            else:
+                obs_result[tf] = {"bullish": None, "bearish": None}
+            
         return {
             "success": True,
             "code": code,
-            "data": result
+            "data": result,
+            "obs": obs_result
         }
     except Exception as e:
         logger.error(f"Failed to query multi kbars for {code} with anchor_time={anchor_time}: {e}")
