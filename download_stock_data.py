@@ -176,6 +176,17 @@ def init_db() -> None:
                 PRIMARY KEY (code, timeframe, ob_type)
             )
         """)
+
+        # Create excluded_list table
+        logger.info("Checking/Creating table: excluded_list")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS excluded_list (
+                code TEXT PRIMARY KEY,
+                name TEXT,
+                reason TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         
         conn.commit()
         logger.info("Database initialization successful.")
@@ -209,6 +220,8 @@ def add_to_wish_list(code: str, name: str) -> bool:
             "INSERT OR REPLACE INTO wish_list (code, name, status) VALUES (?, ?, 'active')",
             (code, name)
         )
+        # If stock was in excluded_list, remove it from excluded_list
+        cursor.execute("DELETE FROM excluded_list WHERE code = ?", (code,))
         conn.commit()
         return True
     except Exception as e:
@@ -225,13 +238,105 @@ def remove_from_wish_list(code: str, delete_data: bool = False) -> bool:
     try:
         cursor.execute("DELETE FROM wish_list WHERE code = ?", (code,))
         if delete_data:
-            tables = ["stock1k", "stock5k", "stock15k", "stock30k", "stock60k", "stock1d"]
+            tables = ["stock1k", "stock5k", "stock15k", "stock30k", "stock60k", "stock1d", "stock_order_blocks"]
             for table in tables:
                 cursor.execute(f"DELETE FROM {table} WHERE code = ?", (code,))
         conn.commit()
         return True
     except Exception as e:
         logger.error(f"Error removing {code} from wish_list: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+
+# Excluded List DB helpers
+def get_excluded_list() -> list:
+    """Gets all stocks in the excluded list."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT code, name, reason, created_at FROM excluded_list ORDER BY created_at DESC")
+        return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        logger.error(f"Error reading excluded_list: {e}")
+        return []
+    finally:
+        conn.close()
+
+def is_excluded(code: str) -> bool:
+    """Checks if a stock is in the excluded list."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT 1 FROM excluded_list WHERE code = ?", (code,))
+        return cursor.fetchone() is not None
+    except Exception as e:
+        logger.error(f"Error checking is_excluded for {code}: {e}")
+        return False
+    finally:
+        conn.close()
+
+def add_to_excluded_list(code: str, name: str = "", reason: str = "") -> bool:
+    """Adds a stock to the excluded list and removes it from wish_list (without deleting K-lines)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        if not name:
+            cursor.execute("SELECT name FROM wish_list WHERE code = ?", (code,))
+            row = cursor.fetchone()
+            if row and row["name"]:
+                name = row["name"]
+        
+        cursor.execute(
+            "INSERT OR REPLACE INTO excluded_list (code, name, reason) VALUES (?, ?, ?)",
+            (code, name or f"Stock {code}", reason)
+        )
+        # Remove from wish_list without deleting K-line data
+        cursor.execute("DELETE FROM wish_list WHERE code = ?", (code,))
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error adding {code} to excluded_list: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def remove_from_excluded_list(code: str) -> bool:
+    """Removes a stock from the excluded list (un-exclude)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM excluded_list WHERE code = ?", (code,))
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error removing {code} from excluded_list: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def restore_from_excluded_list(code: str) -> bool:
+    """Restores a stock from excluded_list back into wish_list."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT code, name FROM excluded_list WHERE code = ?", (code,))
+        row = cursor.fetchone()
+        name = row["name"] if row and row["name"] else f"Stock {code}"
+        
+        cursor.execute(
+            "INSERT OR REPLACE INTO wish_list (code, name, status) VALUES (?, ?, 'active')",
+            (code, name)
+        )
+        cursor.execute("DELETE FROM excluded_list WHERE code = ?", (code,))
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error restoring {code} from excluded_list: {e}")
         conn.rollback()
         return False
     finally:
