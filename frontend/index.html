@@ -478,6 +478,138 @@
             box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
         }
 
+        /* DB Info Card Styles */
+        .db-info-card {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .db-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .db-info-item {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .db-info-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .db-path-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .db-path-text {
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            color: var(--neon-blue);
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+
+        .copy-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .db-path-abs {
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .db-active-file-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .active-db-badge {
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-weight: 700;
+            color: #fff;
+            font-size: 0.95rem;
+        }
+
+        .active-source-badge {
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: rgba(0, 242, 254, 0.15);
+            color: var(--neon-blue);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            font-weight: 600;
+        }
+
+        .db-file-size {
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #34d399;
+        }
+
+        .db-chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .db-chip-card {
+            flex: 1;
+            min-width: 240px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.65rem 0.9rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+        }
+
+        .db-chip-card.is-active {
+            border-color: rgba(0, 242, 254, 0.4);
+            background: rgba(0, 242, 254, 0.06);
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.1);
+        }
+
         /* Data Source Toggle Group */
         .source-toggle-group {
             display: flex;
@@ -987,6 +1119,66 @@
 
         <!-- TAB 3: 系統與匯入設定 -->
         <div class="tab-content" id="tab-settings">
+            <!-- SQLite Database Storage & Directory Info Card -->
+            <div class="settings-box db-info-card">
+                <div class="settings-header" style="justify-content: space-between; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                        <i class="fa-solid fa-database" style="color: var(--neon-blue);"></i>
+                        <span>SQLite 資料庫目錄與儲存狀態</span>
+                    </div>
+                    <button class="btn btn-secondary" onclick="fetchDbInfo()" title="重新整理資料庫資訊" style="padding: 0.35rem 0.8rem; font-size: 0.8rem; border-radius: 8px;">
+                        <i class="fa-solid fa-arrows-rotate"></i> 重新整理
+                    </button>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                    顯示當前系統 SQLite 資料庫儲存資料夾路徑、當前啟用之資料庫檔案與佔用容量大小。
+                </p>
+
+                <div class="db-info-grid">
+                    <!-- DB Directory Box -->
+                    <div class="db-info-item">
+                        <div class="db-info-label">
+                            <i class="fa-solid fa-folder-tree" style="color: var(--neon-blue);"></i>
+                            <span>資料庫儲存目錄 (DB_DIR)</span>
+                        </div>
+                        <div class="db-path-box">
+                            <code class="db-path-text" id="db-dir-rel">data/</code>
+                            <button class="copy-btn" onclick="copyDbPath('db-dir-abs')" title="複製完整絕對路徑">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                        <div class="db-path-abs" id="db-dir-abs" title="系統絕對路徑">載入中...</div>
+                    </div>
+
+                    <!-- Active DB File Box -->
+                    <div class="db-info-item">
+                        <div class="db-info-label">
+                            <i class="fa-solid fa-hard-drive" style="color: var(--neon-purple);"></i>
+                            <span>當前啟用資料庫檔案</span>
+                        </div>
+                        <div class="db-active-file-box">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="active-db-badge" id="active-db-badge">Shioaji.db</span>
+                                <span class="active-source-badge" id="active-source-badge">Shioaji 模式</span>
+                            </div>
+                            <div class="db-file-size" id="active-db-size">計算中...</div>
+                        </div>
+                        <div class="db-path-abs" id="active-db-abs" title="檔案絕對路徑">載入中...</div>
+                    </div>
+                </div>
+
+                <!-- All DB Files Overview Chips -->
+                <div class="db-files-list">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                        <i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> 專案資料庫清單概況
+                    </div>
+                    <div class="db-chips-container" id="db-chips-container">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Yahoo Import Settings Box -->
             <div class="settings-box">
                 <div class="settings-header">
                     <i class="fa-solid fa-download"></i>
@@ -1094,6 +1286,10 @@
                 history.replaceState(null, null, '#' + shortKey);
             }
             localStorage.setItem('active_dashboard_tab', tabId);
+
+            if (tabId === 'tab-settings') {
+                fetchDbInfo();
+            }
         }
 
         function initTabFromHash() {
@@ -1117,6 +1313,7 @@
             fetchStatus();
             fetchWishlist();
             fetchYahooSettings();
+            fetchDbInfo();
 
             // Event Listeners
             document.getElementById('add-btn').addEventListener('click', addStock);
@@ -1672,6 +1869,70 @@
                 btn.disabled = false;
                 btn.innerHTML = origHTML;
             }
+        }
+
+        // Fetch Database Storage and Directory Info
+        async function fetchDbInfo() {
+            try {
+                const res = await fetch('/api/system/db-info');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const dirRelEl = document.getElementById('db-dir-rel');
+                const dirAbsEl = document.getElementById('db-dir-abs');
+                if (dirRelEl) dirRelEl.textContent = data.db_dir_relative + '/';
+                if (dirAbsEl) {
+                    dirAbsEl.textContent = data.db_dir_absolute;
+                    dirAbsEl.dataset.copyText = data.db_dir_absolute;
+                }
+
+                const activeDbBadge = document.getElementById('active-db-badge');
+                const activeSourceBadge = document.getElementById('active-source-badge');
+                const activeDbSize = document.getElementById('active-db-size');
+                const activeDbAbs = document.getElementById('active-db-abs');
+
+                if (activeDbBadge) activeDbBadge.textContent = data.active_db_name;
+                if (activeSourceBadge) activeSourceBadge.textContent = data.active_source === 'shioaji' ? 'Shioaji 模式' : 'Yahoo 模式';
+                if (activeDbSize) activeDbSize.textContent = data.active_db_size_formatted;
+                if (activeDbAbs) {
+                    activeDbAbs.textContent = data.active_db_absolute;
+                    activeDbAbs.dataset.copyText = data.active_db_absolute;
+                }
+
+                const chipsContainer = document.getElementById('db-chips-container');
+                if (chipsContainer && data.databases) {
+                    chipsContainer.innerHTML = data.databases.map(db => `
+                        <div class="db-chip-card ${db.is_active ? 'is-active' : ''}">
+                            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                <i class="fa-solid fa-file-invoice" style="color: ${db.is_active ? 'var(--neon-blue)' : 'var(--text-secondary)'};"></i>
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.85rem; color: #fff;">${db.name}</div>
+                                    <div style="font-size: 0.72rem; color: var(--text-secondary);">${db.label}</div>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; color: ${db.is_active ? '#34d399' : 'var(--text-secondary)'};">
+                                    ${db.size_formatted}
+                                </div>
+                                ${db.is_active ? '<span style="font-size: 0.65rem; color: var(--neon-blue); font-weight: 600;">● 使用中</span>' : '<span style="font-size: 0.65rem; color: var(--text-secondary);">備用</span>'}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error("無法獲取資料庫目錄資訊：", err);
+            }
+        }
+
+        // Copy Database Path Helper
+        function copyDbPath(elementId) {
+            const el = document.getElementById(elementId);
+            const textToCopy = el.dataset.copyText || el.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showToast("已複製資料庫路徑至剪貼簿！", "success");
+            }).catch(() => {
+                showToast("複製路徑失敗", "error");
+            });
         }
     </script>
 </body>
