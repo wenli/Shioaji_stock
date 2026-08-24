@@ -13,8 +13,8 @@ def test_backtest():
     
     print(f"Current DB Name: {dsd.get_db_name()}")
     
-    # 直接用 sqlite3 驗證該區間的資料是否存在
-    conn = sqlite3.connect("Y.db")
+    # 直接用 dsd.get_db_connection() 驗證該區間的資料是否存在
+    conn = dsd.get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM stock60k LIMIT 3")
     print(f"Raw stock60k full rows: {cursor.fetchall()}")

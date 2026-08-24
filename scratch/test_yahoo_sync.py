@@ -7,20 +7,13 @@ import sqlite3
 
 def run_test():
     import os
-    if os.path.exists("Y.db"):
-        print("Removing existing Y.db for clean backtrack test...")
-        try:
-            os.remove("Y.db")
-        except Exception as e:
-            print(f"Warning: Could not remove Y.db: {e}")
-            
     print("Setting active source to 'yahoo'...")
     dsd.set_active_source("yahoo")
     
-    print(f"Current DB Name: {dsd.get_db_name()}")
+    db_path = dsd.get_db_name()
+    print(f"Current DB Name / Path: {db_path}")
     
-    print("Initializing Y.db database...")
-
+    print("Initializing database...")
     dsd.init_db()
     
     # 測試下載 2330 台積電
@@ -28,9 +21,9 @@ def run_test():
     stats = dsd.download_yahoo_kbars("2330", "2026-06-01", "2026-06-25")
     print(f"Download Stats: {stats}")
     
-    # 驗證 Y.db 是否有資料
+    # 驗證資料庫是否有資料
     print("Verifying database records...")
-    conn = sqlite3.connect("Y.db")
+    conn = dsd.get_db_connection()
     cursor = conn.cursor()
     
     tables = ["stock5k", "stock15k", "stock30k", "stock60k", "stock1d"]
