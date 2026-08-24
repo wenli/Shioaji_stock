@@ -162,6 +162,64 @@ def update_source_config(req: SourceConfigRequest):
     return {"active_source": req.source}
 
 
+def format_file_size(size_bytes: int) -> str:
+    """Formats file size bytes into human readable string."""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.2f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.2f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+
+@app.get("/api/system/db-info")
+def get_database_info():
+    """Gets detailed database directory and storage file information."""
+    db_dir = dsd.get_db_dir()
+    active_source = dsd.get_active_source()
+    active_db_path = Path(dsd.get_db_name())
+    
+    db_files = [
+        {"name": "Shioaji.db", "source": "shioaji", "label": "Shioaji 證券行情庫"},
+        {"name": "Y.db", "source": "yahoo", "label": "Yahoo Finance 行情庫"}
+    ]
+    
+    databases_info = []
+    for item in db_files:
+        file_path = db_dir / item["name"]
+        exists = file_path.exists()
+        size_bytes = file_path.stat().st_size if exists else 0
+        is_active = (item["source"] == active_source)
+        
+        databases_info.append({
+            "name": item["name"],
+            "source": item["source"],
+            "label": item["label"],
+            "is_active": is_active,
+            "exists": exists,
+            "path_relative": str(file_path),
+            "path_absolute": str(file_path.resolve()),
+            "size_bytes": size_bytes,
+            "size_formatted": format_file_size(size_bytes) if exists else "未建立"
+        })
+    
+    active_size_bytes = active_db_path.stat().st_size if active_db_path.exists() else 0
+    
+    return {
+        "db_dir_relative": str(db_dir),
+        "db_dir_absolute": str(db_dir.resolve()),
+        "active_source": active_source,
+        "active_db_name": active_db_path.name,
+        "active_db_relative": str(active_db_path),
+        "active_db_absolute": str(active_db_path.resolve()),
+        "active_db_size_bytes": active_size_bytes,
+        "active_db_size_formatted": format_file_size(active_size_bytes) if active_db_path.exists() else "未建立",
+        "databases": databases_info
+    }
+
+
 @app.get("/api/wishlist")
 def get_wishlist():
     """Gets all stocks in the wish list, with optional live quotes and db stats."""
