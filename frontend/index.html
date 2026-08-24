@@ -1052,6 +1052,11 @@
                 <span>OB 即時雷達</span>
                 <span class="tab-count-badge radar-badge" id="tab-count-radar">0</span>
             </button>
+            <button class="tab-btn" id="tab-btn-excluded" onclick="switchTab('tab-excluded')">
+                <i class="fa-solid fa-ban"></i>
+                <span>排除追蹤清單</span>
+                <span class="tab-count-badge" id="tab-count-excluded">0</span>
+            </button>
             <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('tab-settings')">
                 <i class="fa-solid fa-sliders"></i>
                 <span>系統與匯入設定</span>
@@ -1077,7 +1082,7 @@
                                 <th>5分K 更新時間</th>
                                 <th>日K 更新時間</th>
                                 <th>下載狀態</th>
-                                <th style="width: 60px;">操作</th>
+                                <th style="width: 90px; text-align: center;">操作</th>
                             </tr>
                         </thead>
                         <tbody id="wishlist-body">
@@ -1117,7 +1122,52 @@
             </div>
         </div>
 
-        <!-- TAB 3: 系統與匯入設定 -->
+        <!-- TAB 3: 排除追蹤清單 -->
+        <div class="tab-content" id="tab-excluded">
+            <div class="wishlist-card">
+                <div class="card-header">
+                    <div>
+                        <h2><i class="fa-solid fa-ban" style="color: #ff3366; margin-right: 8px;"></i>排除追蹤清單</h2>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">
+                            名單內的股票將不會進行自動下載與更新，且在 Yahoo 熱門股匯入時會自動跳過。
+                        </p>
+                    </div>
+                    <span id="excluded-total-count" class="sync-badge">共 0 檔排除</span>
+                </div>
+
+                <!-- Exclude Add Form Bar -->
+                <div class="search-add-box" style="margin-bottom: 1.5rem; background: rgba(0, 0, 0, 0.3); padding: 0.75rem; border-radius: 14px; border: 1px solid var(--border-color);">
+                    <input type="text" id="exclude-stock-input" placeholder="輸入要排除代碼 (例如：0050)" style="max-width: 220px;" maxlength="10">
+                    <input type="text" id="exclude-reason-input" placeholder="排除原因 / 備註 (可選，例如：暫不交易ETF)" style="flex: 1;">
+                    <button id="add-exclude-btn" class="btn btn-secondary" onclick="addExcludedStockFromInput()" style="background: rgba(255, 51, 102, 0.15); color: #ff3366; border-color: rgba(255, 51, 102, 0.3);">
+                        <i class="fa-solid fa-ban"></i> 加入排除
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>股票</th>
+                                <th>排除原因 / 備註</th>
+                                <th>排除時間</th>
+                                <th style="width: 170px; text-align: center;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="excluded-body">
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 3rem 0;">
+                                    <div class="spinner" style="margin-bottom: 1rem;"></div>
+                                    <div>載入中...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: 系統與匯入設定 -->
         <div class="tab-content" id="tab-settings">
             <!-- SQLite Database Storage & Directory Info Card -->
             <div class="settings-box db-info-card">
@@ -1289,6 +1339,8 @@
 
             if (tabId === 'tab-settings') {
                 fetchDbInfo();
+            } else if (tabId === 'tab-excluded') {
+                fetchExcludedList();
             }
         }
 
@@ -1297,6 +1349,7 @@
             const tabMap = {
                 'wishlist': 'tab-wishlist',
                 'radar': 'tab-radar',
+                'excluded': 'tab-excluded',
                 'settings': 'tab-settings'
             };
             const targetTab = tabMap[hash] || localStorage.getItem('active_dashboard_tab') || 'tab-wishlist';
@@ -1312,6 +1365,7 @@
             initTabFromHash();
             fetchStatus();
             fetchWishlist();
+            fetchExcludedList();
             fetchYahooSettings();
             fetchDbInfo();
 
@@ -1320,6 +1374,12 @@
             document.getElementById('stock-input').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') addStock();
             });
+            const excludeInput = document.getElementById('exclude-stock-input');
+            if (excludeInput) {
+                excludeInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') addExcludedStockFromInput();
+                });
+            }
             document.getElementById('import-yahoo-btn').addEventListener('click', importYahooStocks);
             document.getElementById('sync-btn').addEventListener('click', syncAllStocks);
             document.getElementById('save-settings-btn').addEventListener('click', saveYahooSettings);
@@ -1690,16 +1750,27 @@
                     <td><span class="sync-badge">${cleanTime(stock.last_1d)}</span></td>
                     <td>${statusHTML}</td>
                     <td>
-                        <button class="btn-icon delete-btn" data-code="${stock.code}" title="移出清單">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
+                        <div style="display: flex; gap: 0.35rem; align-items: center; justify-content: center;">
+                            <button class="btn-icon exclude-btn" data-code="${stock.code}" data-name="${stock.name}" title="移至排除清單 (保留歷史K線)" style="color: #ff3366;">
+                                <i class="fa-solid fa-ban"></i>
+                            </button>
+                            <button class="btn-icon delete-btn" data-code="${stock.code}" title="刪除股票並清除K線資料">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
                     </td>
                 `;
 
                 // Row click opens chart in a new tab
                 tr.addEventListener('click', (e) => {
-                    if (e.target.closest('.delete-btn')) return;
+                    if (e.target.closest('.delete-btn') || e.target.closest('.exclude-btn')) return;
                     window.open(`/chart/${stock.code}`, '_blank');
+                });
+
+                // Attach exclude event
+                tr.querySelector('.exclude-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    excludeStock(stock.code, stock.name);
                 });
 
                 // Attach delete event
@@ -1933,6 +2004,181 @@
             }).catch(() => {
                 showToast("複製路徑失敗", "error");
             });
+        }
+
+        // ==========================================
+        // Excluded List Functions (排除追蹤清單系統)
+        // ==========================================
+
+        // Fetch Excluded List
+        async function fetchExcludedList() {
+            try {
+                const res = await fetch('/api/excluded_list');
+                if (!res.ok) return;
+                const list = await res.json();
+                renderExcludedList(list);
+            } catch (err) {
+                console.error("無法獲取排除清單：", err);
+            }
+        }
+
+        // Render Excluded List
+        function renderExcludedList(list) {
+            const tabCount = document.getElementById('tab-count-excluded');
+            const totalCount = document.getElementById('excluded-total-count');
+            if (tabCount) tabCount.textContent = list.length;
+            if (totalCount) totalCount.textContent = `共 ${list.length} 檔排除`;
+
+            const body = document.getElementById('excluded-body');
+            if (!body) return;
+
+            if (list.length === 0) {
+                body.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 3rem 0;">
+                            目前沒有任何排除的股票。您可以在上方手動加入，或在追蹤清單中點擊「🚫 排除」。
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            body.innerHTML = '';
+            list.forEach(item => {
+                const tr = document.createElement('tr');
+                const cleanCreated = item.created_at ? item.created_at.substring(0, 16) : '-';
+                const reasonText = item.reason ? `<span style="color: #f1f5f9;">${item.reason}</span>` : '<span style="color: var(--text-secondary); font-style: italic;">無備註</span>';
+
+                tr.innerHTML = `
+                    <td>
+                        <div class="stock-info">
+                            <span class="stock-code" style="color: #ff3366;">${item.code}</span>
+                            <span class="stock-name">${item.name || ''}</span>
+                        </div>
+                    </td>
+                    <td>${reasonText}</td>
+                    <td><span class="sync-badge">${cleanCreated}</span></td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                            <button class="btn btn-secondary" onclick="restoreStock('${item.code}')" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 8px; color: #00e676; border-color: rgba(0, 230, 118, 0.3);">
+                                <i class="fa-solid fa-rotate-left"></i> 恢復追蹤
+                            </button>
+                            <button class="btn btn-secondary" onclick="deleteExcludedStock('${item.code}')" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 8px; color: var(--text-secondary);">
+                                <i class="fa-solid fa-trash-can"></i> 解除
+                            </button>
+                        </div>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        // Add excluded stock from input
+        async function addExcludedStockFromInput() {
+            const codeInput = document.getElementById('exclude-stock-input');
+            const reasonInput = document.getElementById('exclude-reason-input');
+            const code = codeInput.value.trim();
+            const reason = reasonInput.value.trim();
+
+            if (!code) {
+                showToast("請輸入欲排除的股票代碼", "error");
+                return;
+            }
+
+            const btn = document.getElementById('add-exclude-btn');
+            const origHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div>';
+
+            try {
+                const res = await fetch('/api/excluded_list', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code, reason: reason })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message, 'success');
+                    codeInput.value = '';
+                    reasonInput.value = '';
+                    fetchExcludedList();
+                    fetchWishlist();
+                } else {
+                    showToast(data.detail || "新增排除失敗", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("與伺服器通訊錯誤", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHTML;
+            }
+        }
+
+        // Move stock from wish_list to excluded_list
+        async function excludeStock(code, name) {
+            const reason = prompt(`確定要將股票 ${code} ${name || ''} 移至排除清單嗎？\n（已下載之 K 線歷史資料將完整保留）\n\n可選輸入排除原因 / 備註：`, "");
+            if (reason === null) return; // User cancelled
+
+            try {
+                const res = await fetch(`/api/wishlist/exclude/${code}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: reason })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message, 'success');
+                    fetchWishlist();
+                    fetchExcludedList();
+                } else {
+                    showToast(data.detail || "排除失敗", 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("與伺服器通訊錯誤", 'error');
+            }
+        }
+
+        // Restore stock from excluded_list back to wish_list
+        async function restoreStock(code) {
+            try {
+                const res = await fetch(`/api/excluded_list/restore/${code}`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message, 'success');
+                    fetchExcludedList();
+                    fetchWishlist();
+                } else {
+                    showToast(data.detail || "恢復失敗", 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("與伺服器通訊錯誤", 'error');
+            }
+        }
+
+        // Remove from excluded_list (un-exclude)
+        async function deleteExcludedStock(code) {
+            if (!confirm(`確定要將股票 ${code} 從排除清單中解除嗎？`)) return;
+
+            try {
+                const res = await fetch(`/api/excluded_list/${code}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message, 'success');
+                    fetchExcludedList();
+                } else {
+                    showToast(data.detail || "解除排除失敗", 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("與伺服器通訊錯誤", 'error');
+            }
         }
     </script>
 </body>
