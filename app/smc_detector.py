@@ -237,6 +237,18 @@ def compute_and_save_obs_for_stock(conn: sqlite3.Connection, code: str) -> dict:
     return results
 
 
+def update_stock_order_blocks(code: str) -> dict:
+    """
+    Helper that opens a DB connection and calls compute_and_save_obs_for_stock.
+    """
+    import download_stock_data as dsd
+    conn = dsd.get_db_connection()
+    try:
+        return compute_and_save_obs_for_stock(conn, code)
+    finally:
+        conn.close()
+
+
 def get_stock_obs_from_db(conn: sqlite3.Connection, code: str) -> dict:
     """
     Retrieves cached OBs for a given stock code from `stock_order_blocks`.
