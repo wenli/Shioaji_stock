@@ -3,6 +3,7 @@ import os
 import time
 import logging
 import json
+import shutil
 from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
@@ -48,11 +49,43 @@ def set_active_source(source: str) -> None:
     except Exception as e:
         logger.error(f"Error writing config.json: {e}")
 
+def get_db_dir() -> Path:
+    """Returns the database directory path from DB_DIR env var (default: 'data')."""
+    db_dir = os.getenv("DB_DIR", "data")
+    dir_path = Path(db_dir)
+    dir_path.mkdir(parents=True, exist_ok=True)
+    return dir_path
+
+def migrate_legacy_db_if_needed(target_path: Path, filename: str) -> None:
+    """Migrates legacy database file and companion files from root directory to target directory if needed."""
+    legacy_path = Path(filename)
+    if not target_path.exists() and legacy_path.exists() and target_path.resolve() != legacy_path.resolve():
+        try:
+            logger.info(f"Migrating legacy database from {legacy_path.resolve()} to {target_path.resolve()}...")
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(legacy_path), str(target_path))
+            logger.info(f"Database migrated successfully to {target_path}")
+
+            for suffix in ["-wal", "-shm", "-journal"]:
+                legacy_companion = Path(f"{filename}{suffix}")
+                target_companion = target_path.parent / f"{target_path.name}{suffix}"
+                if legacy_companion.exists():
+                    shutil.move(str(legacy_companion), str(target_companion))
+                    logger.info(f"Migrated companion file {legacy_companion} to {target_companion}")
+        except Exception as e:
+            logger.error(f"Failed to migrate database {filename}: {e}")
+
 def get_db_name() -> str:
+    """Returns the resolved database file path."""
     source = get_active_source()
     if source == "yahoo":
-        return "Y.db"
-    return os.getenv("DB_NAME", "Shioaji.db")
+        filename = "Y.db"
+    else:
+        filename = os.getenv("DB_NAME", "Shioaji.db")
+    
+    target_path = get_db_dir() / filename
+    migrate_legacy_db_if_needed(target_path, filename)
+    return str(target_path)
 
 
 class SyncStatusTracker:
