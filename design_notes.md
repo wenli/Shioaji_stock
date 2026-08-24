@@ -41,9 +41,11 @@ c:\Intel\Shioaji_stock\
 │   └── index.html           # 暗黑玻璃霓虹風 Dashboard SPA (含 Lightweight-Charts K線彈窗)
 ├── scratch/
 │   └── test_stock_sync.py   # 獨立核心下載與聚合功能測試腳本
-├── .env                     # 環境變數與 Shioaji 金鑰
-├── Shioaji.db               # SQLite 資料庫 (儲存 wish_list 與 K線表格)
-└── requirements.txt         # 專案套件依賴
+├── .env                     # 環境變數與 Shioaji 金鑰 (支援 DB_DIR=data)
+├── data/                    # SQLite 資料庫目錄 (受 .gitignore 保護)
+│   ├── Shioaji.db           # Shioaji 資料庫 (儲存 wish_list 與 K線表格)
+│   └── Y.db                 # Yahoo 資料庫 (獨立隔離儲存)
+├── requirements.txt         # 專案套件依賴
 ```
 
 ---

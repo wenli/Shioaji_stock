@@ -81,8 +81,38 @@ c:\Intel\Shioaji_stock\
 │   ├── main.py              # FastAPI 服務入口、Web APIs、APScheduler 生命週期
 │   ├── backtester.py        # 核心多策略回測引擎 (SMC, EMA, BB, KD)
 │   └── smc_detector.py      # SMC Order Block 識別、未緩解過濾與多週期快取模組
+├── data/                    # SQLite 資料庫集中存放目錄 (受 .gitignore 保護)
+│   ├── Shioaji.db           # Shioaji 資料庫 (儲存願望清單、K線與 OB 快取)
+│   └── Y.db                 # Yahoo 資料庫 (獨立隔離儲存)
 ├── frontend/
-│   ├── index.html           # 現代分段| `GET` | `/chart/{code}` | 渲染極致滿版 (100vw/100vh) 的多週期 K 線看盤終端 (支援單圖一鍵放大) |
+│   ├── index.html           # 現代分段卡片式儀表板 (清單、OB 雷達、系統設定)
+│   ├── chart.html           # 極致滿版 100vw/100vh 多週期 K 線終端 (支援單圖一鍵放大)
+│   ├── backtest.html        # 多策略量化回測與歷史複盤頁面
+│   └── lightweight-charts.standalone.production.js # TradingView Lightweight Charts 函式庫
+├── docs/                    # 完整操作與量化研究報告
+│   ├── user_guide.md        # 系統使用與操作手冊
+│   ├── best_taiwan_strategy_report.md # 台股交易策略大評比報告
+│   └── smc_strategy_report.md         # SMC 策略優化分析報告
+├── scratch/                 # 開發與回測驗證測試腳本
+├── download_stock_data.py   # 股票合約檢索、K線下載、Resample 聚合與 DB 管理
+├── scheduler_manager.py     # APScheduler 背景排程管理 (週一至週五 13:40 觸發)
+├── .env                     # 環境變數與 Shioaji 金鑰 (支援 DB_DIR=data)
+└── requirements.txt         # 專案套件依賴
+```
+
+---
+
+## 📡 核心 API 端點
+
+| 方法 | 路徑 | 說明 |
+| :--- | :--- | :--- |
+| `GET` | `/` | 現代分段卡片式 Dashboard 儀表板 (清單 / OB 雷達 / 系統設定) |
+| `GET` | `/chart/{code}` | 渲染極致滿版 (100vw/100vh) 的多週期 K 線看盤終端 (支援單圖一鍵放大) |
+| `GET` | `/backtest` | 多策略量化回測與歷史複盤儀表板 |
+| `GET` | `/api/wishlist` | 取得當前資料來源的願望清單與最新價格、OB 燈號 |
+| `POST`| `/api/wishlist` | 新增股票至願望清單並啟動背景下載 |
+| `DELETE`| `/api/wishlist/{code}` | 自願望清單移除股票並清理歷史資料 |
+| `GET` | `/api/ob-radar` | 取得所有股票當前 SMC Order Block (POI) 觸及狀態與雷達清單 |
 | `GET` | `/api/stock/{code}` | 獲取特定個股合約名稱（整合 Shioaji 與 DB Fallback 查詢機制） |
 | `GET` | `/api/kbars/multi/{code}`| 一鍵查詢單檔股票多週期 (5K, 15K, 60K, 日K) 的量價數據與標準 SMC OB 區間 |
 
@@ -172,4 +202,8 @@ c:\Intel\Shioaji_stock\
 14. **🎯 全系統 SMC Order Block (OB) 演算法與數據來源 100% 完全對齊**：
     * /api/kbars/multi/{code} API 整合 [smc_detector.py](file:///c:/Intel/Shioaji_stock/app/smc_detector.py) 計算，回傳標準 SMC OB 區間。
     * 前端圖表 [chart.html](file:///c:/Intel/Shioaji_stock/frontend/chart.html) 與後端演算法全面對齊（Swing High/Low + BOS 結構突破 + 未緩解過濾），使【首頁雷達】、【策略回測】與【多週期圖表】呈現的 OB 色塊與價格區間完全一致。
+15. **🗄️ 資料庫集中化管理 (`data/`)、`DB_DIR` 環境變數與無損自動遷移**：
+    * 將 SQLite 資料庫統一集中於專案內 `data/` 目錄下管理（`data/Shioaji.db` 與 `data/Y.db`），支援透過 `.env` 的 `DB_DIR` 彈性自訂路徑。
+    * 實作無縫自動遷移機制：系統啟動時若發現根目錄有舊資料庫檔案（包含 WAL/SHM  companion 檔案），自動安全搬移至目標目錄，100% 完整保留自選股與歷史數據。
+    * 同步更新 `.gitignore` 加入 `data/` 與 `*.db` 規則，強化資安與版本控制。
 
