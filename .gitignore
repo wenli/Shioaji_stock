@@ -4,8 +4,11 @@ __pycache__/
 *$py.class
 
 # Database
-Shioaji.db
-Y.db
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+data/
 
 # Local configuration
 .env
