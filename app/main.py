@@ -529,6 +529,41 @@ def trigger_all_sync(background_tasks: BackgroundTasks):
     background_tasks.add_task(sm.sync_all_wish_stocks, api)
     return {"message": "Manual sync triggered in the background for all active stocks."}
 
+@app.post("/api/sync/{code}")
+def trigger_single_stock_sync(code: str):
+    """Synchronously triggers sync for a single stock code from the active data source and updates SMC OBs."""
+    active_source = dsd.get_active_source()
+    is_online = hasattr(app.state, 'api') and app.state.api is not None
+    
+    if active_source == "shioaji" and not is_online:
+        raise HTTPException(status_code=503, detail="Shioaji API 未登入，無法同步資料。")
+        
+    api = getattr(app.state, 'api', None) if active_source == "shioaji" else None
+    
+    try:
+        stats = dsd.sync_to_latest(api, code)
+        status_info = dsd.sync_tracker.get_status(code)
+        if status_info.get("status") == "failed":
+            raise HTTPException(status_code=500, detail=status_info.get("error", "同步失敗"))
+        
+        # 重新計算並更新該檔股票的 SMC Order Blocks 快取
+        try:
+            smc_detector.update_stock_order_blocks(code)
+        except Exception as e:
+            logger.warning(f"Failed to update SMC OB for {code} after sync: {e}")
+            
+        return {
+            "success": True,
+            "code": code,
+            "message": f"股票 {code} K 線數據已成功同步至最新！",
+            "stats": stats
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error syncing single stock {code}: {e}")
+        raise HTTPException(status_code=500, detail=f"同步股票 {code} 時發生錯誤: {str(e)}")
+
 
 @app.get("/api/settings/yahoo")
 def get_yahoo_settings():
