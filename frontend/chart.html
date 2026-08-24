@@ -368,7 +368,64 @@
             font-size: 1.1rem;
         }
 
+        .toast-success {
+            border-color: rgba(0, 230, 118, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 230, 118, 0.25);
+        }
+        .toast-success .toast-icon { color: var(--neon-green); }
+
+        .toast-error {
+            border-color: rgba(255, 51, 102, 0.4);
+            box-shadow: 0 4px 20px rgba(255, 51, 102, 0.25);
+        }
         .toast-error .toast-icon { color: var(--neon-red); }
+
+        /* Sync Button in Header */
+        .chart-header-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0 0.75rem;
+            background: rgba(0, 242, 254, 0.08);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            border-radius: 6px;
+            color: var(--neon-blue);
+            font-weight: 600;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            height: 28px;
+            line-height: 1;
+            font-family: inherit;
+        }
+
+        .chart-header-btn:hover:not(:disabled) {
+            background: rgba(0, 242, 254, 0.2);
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.35);
+            border-color: var(--neon-blue);
+            color: #fff;
+        }
+
+        .chart-header-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            border-color: var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .btn-spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(0, 242, 254, 0.3);
+            border-top-color: var(--neon-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
 
         /* Mobile layout RWD */
         @media (max-width: 768px) {
@@ -403,6 +460,10 @@
                 <p id="stock-subtitle">多週期量價圖</p>
             </div>
             <div class="header-actions">
+                <button id="sync-stock-btn" class="chart-header-btn" onclick="syncCurrentStock()" title="立即同步並更新此檔股票最新 K 線數據">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span>立即更新</span>
+                </button>
                 <div class="smc-control-container">
                     <span class="smc-label">
                         <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--neon-blue); margin-right: 4px;"></i>SMC
@@ -1279,7 +1340,7 @@
         }
 
         // Load K-line data from one unified API call into all 4 charts
-        async function loadChartData(code) {
+        async function loadChartData(code, preserveRange = false) {
             try {
                 // If the loaded stock code doesn't match the URL, clear backtest parameters
                 const pathParts = window.location.pathname.split('/');
@@ -1330,6 +1391,12 @@
                             });
                         });
 
+                        // Record current visible range if requested
+                        let oldLogicalRange = null;
+                        if (preserveRange && charts[key]) {
+                            oldLogicalRange = charts[key].timeScale().getVisibleLogicalRange();
+                        }
+
                         if (candleSeriesList[key]) {
                             candleSeriesList[key].setData(formattedCandles);
                         }
@@ -1350,8 +1417,9 @@
                         }
                         
                         if (charts[key]) {
-                            // Only fitContent if it's NOT in review mode, or if it is the 1d chart (to keep global context)
-                            if (!isReviewMode || key === '1d') {
+                            if (preserveRange && oldLogicalRange) {
+                                charts[key].timeScale().setVisibleLogicalRange(oldLogicalRange);
+                            } else if (!isReviewMode || key === '1d') {
                                 charts[key].timeScale().fitContent();
                             }
                         }
@@ -1366,12 +1434,69 @@
                         }
                     });
                 } else {
-                    showToast("載入多週期 K 線失敗！");
+                    showToast("載入多週期 K 線失敗！", 'error');
                 }
             } catch (err) {
                 console.error(err);
-                showToast("與伺服器通訊錯誤，載入 K 線失敗。");
+                showToast("與伺服器通訊錯誤，載入 K 線失敗。", 'error');
             }
+        }
+
+        // Sync Current Stock
+        async function syncCurrentStock() {
+            const pathParts = window.location.pathname.split('/');
+            const code = pathParts[pathParts.length - 1].toUpperCase();
+            if (!code) return;
+
+            const btn = document.getElementById('sync-stock-btn');
+            const origHTML = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="btn-spinner"></span> <span>同步中...</span>';
+            }
+
+            try {
+                const res = await fetch(`/api/sync/${code}`, { method: 'POST' });
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    throw new Error(data.detail || "同步失敗");
+                }
+                
+                // 重新讀取圖表並保持當前縮放與視野
+                await loadChartData(code, true);
+                showToast(data.message || `股票 ${code} K 線數據已同步至最新！`, 'success');
+            } catch (err) {
+                console.error("同步失敗：", err);
+                showToast(err.message || "與伺服器通訊失敗", 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = origHTML;
+                }
+            }
+        }
+
+        // Show Glassmorphic Toast
+        function showToast(message, type = 'error') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const iconContainer = document.getElementById('toast-icon-container');
+            
+            if (!toast || !toastMsg) return;
+
+            toast.className = `toast toast-${type} active`;
+            toastMsg.textContent = message;
+
+            if (iconContainer) {
+                iconContainer.innerHTML = type === 'success' 
+                    ? '<i class="fa-solid fa-circle-check"></i>' 
+                    : '<i class="fa-solid fa-circle-exclamation"></i>';
+            }
+
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3500);
         }
 
         // Toggle single chart maximize / restore 2x2 grid
