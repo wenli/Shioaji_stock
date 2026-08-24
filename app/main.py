@@ -69,6 +69,14 @@ app.mount("/static", StaticFiles(directory="frontend"), name="static")
 class WishlistRequest(BaseModel):
     code: str
 
+class ExcludeStockRequest(BaseModel):
+    code: str
+    name: str = ""
+    reason: str = ""
+
+class ExcludeWishlistRequest(BaseModel):
+    reason: str = ""
+
 class YahooSettingsRequest(BaseModel):
     max_price: int
     limit: int
@@ -446,6 +454,68 @@ def delete_stock(code: str):
     dsd.sync_tracker.remove(code)
     return {"message": f"Successfully removed stock {code} and cleared its historical data."}
 
+@app.post("/api/wishlist/exclude/{code}")
+def exclude_wishlist_stock(code: str, req: ExcludeWishlistRequest = None):
+    """Moves a stock from wish list to excluded list without deleting K-line data."""
+    reason = req.reason.strip() if req and req.reason else ""
+    success = dsd.add_to_excluded_list(code, reason=reason)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to exclude {code}.")
+    dsd.sync_tracker.remove(code)
+    return {"message": f"已成功將 {code} 移至排除追蹤清單（歷史 K 線數據已完整保留）"}
+
+@app.get("/api/excluded_list")
+def get_excluded_list():
+    """Gets all stocks in the excluded list."""
+    return dsd.get_excluded_list()
+
+@app.post("/api/excluded_list")
+def add_excluded_stock(req: ExcludeStockRequest):
+    """Manually adds a stock to the excluded list."""
+    code = req.code.strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Stock code cannot be empty.")
+    
+    name = req.name.strip()
+    if not name:
+        api = getattr(app.state, 'api', None)
+        if api:
+            try:
+                contract = api.Contracts.Stocks[code]
+                if contract and contract.name:
+                    name = contract.name
+            except Exception:
+                pass
+    
+    success = dsd.add_to_excluded_list(code, name, req.reason.strip())
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to add {code} to excluded list.")
+    
+    dsd.sync_tracker.remove(code)
+    return {"message": f"已成功將 {code} ({name or '個股'}) 加入排除追蹤清單"}
+
+@app.delete("/api/excluded_list/{code}")
+def delete_excluded_stock(code: str):
+    """Removes a stock from the excluded list (un-exclude)."""
+    success = dsd.remove_from_excluded_list(code)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to remove {code} from excluded list.")
+    return {"message": f"已成功將 {code} 從排除追蹤清單中移除"}
+
+@app.post("/api/excluded_list/restore/{code}")
+def restore_excluded_stock(code: str, background_tasks: BackgroundTasks):
+    """Restores a stock from excluded list back to wish list."""
+    success = dsd.restore_from_excluded_list(code)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to restore {code} to wish list.")
+    
+    active_source = dsd.get_active_source()
+    api = getattr(app.state, 'api', None) if active_source == "shioaji" else None
+    dsd.sync_tracker.set_status(code, "pending")
+    background_tasks.add_task(dsd.sync_to_latest, api, code)
+    
+    return {"message": f"已成功將 {code} 恢復至股票追蹤清單，並啟動背景更新"}
+
 @app.post("/api/sync")
 def trigger_all_sync(background_tasks: BackgroundTasks):
     """Manually triggers background sync for all stocks in the wish list."""
@@ -511,6 +581,8 @@ def import_yahoo_stock(background_tasks: BackgroundTasks):
         
         wish_stocks = dsd.get_wish_list()
         existing_codes = {s['code'] for s in wish_stocks}
+        excluded_stocks = dsd.get_excluded_list()
+        excluded_codes = {s['code'] for s in excluded_stocks}
         
         added_count = 0
         imported_stocks = []
@@ -532,6 +604,11 @@ def import_yahoo_stock(background_tasks: BackgroundTasks):
                     code_raw = code_with_market.split(".")[0]
                 else:
                     code_raw = code_with_market
+
+                # 若在排除名單中則直接跳過
+                if code_raw in excluded_codes:
+                    logger.info(f"Skipping excluded stock: {code_raw}")
+                    continue
                 
                 # 尋找名稱
                 name_div = row.select_one('div[class*="Lh(20px)"]')
