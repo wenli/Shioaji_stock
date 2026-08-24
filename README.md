@@ -114,6 +114,8 @@ c:\Intel\Shioaji_stock\
 | `POST`| `/api/wishlist` | 新增股票至願望清單並啟動背景下載 |
 | `DELETE`| `/api/wishlist/{code}` | 自願望清單移除股票並清理歷史資料 |
 | `POST`| `/api/wishlist/exclude/{code}` | 將股票移入排除清單（保留已下載之歷史 K 線） |
+| `POST`| `/api/sync` | 手動觸發背景同步所有願望清單股票 |
+| `POST`| `/api/sync/{code}` | 即時同步指定單檔股票 K 線並自動重算 SMC OB 快取 |
 | `GET` | `/api/excluded_list` | 取得當前資料來源的排除追蹤清單 |
 | `POST`| `/api/excluded_list` | 手動新增股票至排除清單 |
 | `DELETE`| `/api/excluded_list/{code}` | 自排除清單移除股票（解除排除） |
@@ -217,4 +219,8 @@ c:\Intel\Shioaji_stock\
     * 建立獨立 `excluded_list` 資料表與專屬 Tab 分頁，支援手動新增黑名單/排除標的並填寫備註。
     * 追蹤清單提供一鍵「`🚫 排除`」按鈕，將股票移入排除清單且**完整保留既有歷史 K 線數據**，移回時無需重新下載。
     * Yahoo 熱門股一鍵匯入自動過濾排除名單中的個股，徹底避免不感興趣標的被重複匯入。
+17. **⚡ 多週期看盤圖表支援單檔股票即時更新與無縫視野保護**：
+    * 在 [chart.html](file:///c:/Intel/Shioaji_stock/frontend/chart.html) 頂部 42px Slim Toolbar 新增「`⚡ 立即更新`」霓虹按鈕。
+    * 實作後端 `POST /api/sync/{code}` 同步端點，支援 Shioaji 與 Yahoo Finance 模式，並在同步後自動調用 `smc_detector.update_stock_order_blocks(code)` 重新計算 5M/15M/60M/1D 未緩解 OB 快取。
+    * 前端圖表採用 `getVisibleLogicalRange()` / `setVisibleLogicalRange()` 視野保護機制，更新時 100% 保持使用者的縮放視野與捲動位置，消除跳動與閃爍。
 
