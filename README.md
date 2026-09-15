@@ -233,4 +233,12 @@ c:\Intel\Shioaji_stock\
     * 在 [chart.html](file:///c:/Intel/Shioaji_stock/frontend/chart.html) 頂部 42px Slim Toolbar 新增「`⚡ 立即更新`」霓虹按鈕。
     * 實作後端 `POST /api/sync/{code}` 同步端點，支援 Shioaji 與 Yahoo Finance 模式，並在同步後自動調用 `smc_detector.update_stock_order_blocks(code)` 重新計算 5M/15M/60M/1D 未緩解 OB 快取。
     * 前端圖表採用 `getVisibleLogicalRange()` / `setVisibleLogicalRange()` 視野保護機制，更新時 100% 保持使用者的縮放視野與捲動位置，消除跳動與閃爍。
+18. **⚡ Windows 免終端一鍵啟動與關閉腳本 (`start_app.bat` / `stop_app.bat` / `launcher.py`)**：
+    * 新增免終端指令的 Windows 批次檔，支援自動偵測啟用 `.venv` / `venv` 虛擬環境或全域 Python。
+    * 實作 Port 8001 衝突防護與自動開啟瀏覽器首頁 (`http://127.0.0.1:8001`)。
+    * 提供 `stop_app.bat` 一鍵查詢與終止佔用 Port 8001 的背景行程。
+19. **🩹 Yahoo Finance 5K/15K 分鐘線同步與截止日左閉右開修復**：
+    * 解決 `yfinance` 查詢 `end` 參數為 Exclusive（左閉右開）導致無法取得當日最新分鐘線的 Bug，自動將查詢截止日加 1 天以完整收錄當日盤中與收盤最新 5K、15K、30K、60K、日K 資料。
+    * 針對 5m/15m/30m 分鐘線加入嚴格的 55 天起始查詢邊界保護，防止觸發 Yahoo 60 天上限導致的 API 拒絕或空白回傳。
+
 
