@@ -599,7 +599,15 @@ def download_yahoo_kbars(code: str, start_date: str, end_date: str) -> dict:
 
 
                 
-            end_str = end_date
+            # yfinance 的 end 參數為 exclusive (< end 00:00:00)，故加 1 天以確保包含當日最新盤中 K 線
+            query_end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1)
+            end_str = query_end_dt.strftime('%Y-%m-%d')
+
+            # 針對 5m, 15m, 30m 限制起始日期不超過 55 天前，避免 Yahoo 60 天上限報錯
+            if interval in ["5m", "15m", "30m"]:
+                min_allowed_dt = pd.Timestamp.now() - pd.Timedelta(days=55)
+                if pd.to_datetime(start_str) < min_allowed_dt:
+                    start_str = min_allowed_dt.strftime('%Y-%m-%d')
             
             logger.info(f"Downloading Yahoo {interval} for {selected_ticker} from {start_str} to {end_str}...")
             time.sleep(1.0) # sleep 1 second to comply with rate limiting
