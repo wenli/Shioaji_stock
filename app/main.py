@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 import download_stock_data as dsd
 import scheduler_manager as sm
 import pandas as pd
+import numpy as np
 from app import backtester
 from app import smc_detector
 
@@ -97,6 +98,7 @@ class BacktestRequest(BaseModel):
     htf_timeframe: str = "1d"
     ltf_timeframe: str = "5k"
     strategy_name: str = "smc"
+    breakeven_rr: float = 0.0
 
 def update_env_file(key: str, value: str):
     env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -345,6 +347,48 @@ def get_wishlist():
             # Fetch sync status from memory tracker
             tracker_status = dsd.sync_tracker.get_status(code)
 
+            # 計算動能指標 (20MA, 60MA, 20日均量)
+            is_momentum = False
+            momentum_tag = "⚠️ 盤整/低量"
+            avg_vol_20d = 0
+            ma20_val = None
+            ma60_val = None
+            try:
+                rows_d = conn.execute(
+                    "SELECT close, volume FROM stock1d WHERE code = ? ORDER BY ts DESC LIMIT 60",
+                    (code,)
+                ).fetchall()
+                if rows_d:
+                    closes_d = [r['close'] for r in rows_d]
+                    vols_d = [r['volume'] for r in rows_d]
+                    if len(closes_d) >= 20:
+                        ma20_val = round(float(np.mean(closes_d[:20])), 2)
+                        avg_vol_20d = int(np.mean(vols_d[:20]))
+                        if len(closes_d) >= 60:
+                            ma60_val = round(float(np.mean(closes_d[:60])), 2)
+
+                        cur_p = float(close_price) if (close_price is not None and close_price != "N/A") else float(closes_d[0])
+                        if ma60_val is not None:
+                            if cur_p >= ma20_val and ma20_val >= ma60_val and avg_vol_20d >= 2000:
+                                is_momentum = True
+                                momentum_tag = "🚀 高動能標的 (推薦)"
+                            elif cur_p >= ma20_val:
+                                momentum_tag = "📈 多頭結構"
+                            elif cur_p < ma20_val and ma20_val < ma60_val:
+                                momentum_tag = "📉 空頭走勢"
+                            else:
+                                momentum_tag = "⚠️ 盤整整理"
+                        else:
+                            if cur_p >= ma20_val and avg_vol_20d >= 2000:
+                                is_momentum = True
+                                momentum_tag = "🚀 高動能標的 (推薦)"
+                            elif cur_p >= ma20_val:
+                                momentum_tag = "📈 多頭結構"
+                            else:
+                                momentum_tag = "⚠️ 盤整整理"
+            except Exception as e:
+                logger.error(f"Error calculating momentum for {code}: {e}")
+
             result.append({
                 "code": code,
                 "name": s['name'],
@@ -360,7 +404,12 @@ def get_wishlist():
                 "sync_status": tracker_status.get("status", "idle"),
                 "sync_error": tracker_status.get("error", ""),
                 "active_touches": active_touches,
-                "ob_status": ob_status
+                "ob_status": ob_status,
+                "is_momentum": is_momentum,
+                "momentum_tag": momentum_tag,
+                "avg_vol_20d": avg_vol_20d,
+                "ma20": ma20_val,
+                "ma60": ma60_val
             })
     finally:
         conn.close()
@@ -372,8 +421,10 @@ def get_ob_radar():
     """Returns all stocks that are actively touching any 5M, 15M, 60M, or 1D Order Block."""
     all_stocks = get_wishlist()
     touching_stocks = [s for s in all_stocks if s.get("active_touches") and len(s["active_touches"]) > 0]
+    momentum_touching = [s for s in touching_stocks if s.get("is_momentum")]
     return {
         "count": len(touching_stocks),
+        "momentum_count": len(momentum_touching),
         "stocks": touching_stocks,
         "all_monitored_count": len(all_stocks)
     }
@@ -941,7 +992,8 @@ def run_backtest_endpoint(req: BacktestRequest):
             holding_mode=req.holding_mode,
             htf_timeframe=req.htf_timeframe,
             ltf_timeframe=req.ltf_timeframe,
-            strategy_name=req.strategy_name
+            strategy_name=req.strategy_name,
+            breakeven_rr=req.breakeven_rr
         )
         if not result.get("success", False):
             raise HTTPException(status_code=400, detail=result.get("error", "回測執行失敗"))
