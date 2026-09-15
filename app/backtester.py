@@ -33,7 +33,8 @@ def run_backtest(
     holding_mode: str = "day_trade",
     htf_timeframe: str = "1d",
     ltf_timeframe: str = "5k",
-    strategy_name: str = "smc"
+    strategy_name: str = "smc",
+    breakeven_rr: float = 0.0
 ) -> dict:
     """
     Runs trading strategy backtest on the SQLite data.
@@ -104,8 +105,8 @@ def run_backtest(
         last_row = sub_htf.iloc[-1]
         ts_val = str(last_row['ts'])
         
-        # 僅在 SMC 策略時計算 OB (使用近 60 根 HTF 窗口，提升運算效能)
-        if s_name == "smc":
+        # 僅在 SMC 策略且時間已到達 start_date 區間時計算 OB (使用近 60 根 HTF 窗口，提升運算效能)
+        if s_name == "smc" and str(ts_val)[:10] >= str(start_date)[:10]:
             recent_sub = sub_htf.iloc[-min(60, len(sub_htf)):].copy().reset_index(drop=True)
             obs = detect_order_blocks(recent_sub, timeframe=htf_timeframe, swing_window=swing_w)
         else:
@@ -183,6 +184,7 @@ def run_backtest(
     entry_price = 0.0
     entry_time = None
     sl_price = 0.0
+    original_sl = 0.0
     tp_price = 0.0
     
     # 掛單/訊號狀態
@@ -246,6 +248,20 @@ def run_backtest(
 
         # 6. 持倉管理
         if in_position:
+            # 動態保本移損 (若 breakeven_rr > 0)
+            if breakeven_rr > 0:
+                if position_type == "LONG":
+                    risk_unit = entry_price - original_sl
+                    if risk_unit > 0 and high_ltf >= (entry_price + breakeven_rr * risk_unit):
+                        be_level = round(entry_price * 1.002, 2)
+                        if sl_price < be_level:
+                            sl_price = be_level
+                elif position_type == "SHORT":
+                    risk_unit = original_sl - entry_price
+                    if risk_unit > 0 and low_ltf <= (entry_price - breakeven_rr * risk_unit):
+                        be_level = round(entry_price * 0.998, 2)
+                        if sl_price > be_level:
+                            sl_price = be_level
             # A. 做多持倉管理
             if position_type == "LONG":
                 # 1. 停損判斷
@@ -476,6 +492,7 @@ def run_backtest(
                             if shares > 0:
                                 balance = balance - (p_entry * shares) - (p_entry * shares * 0.001425 * fee_discount)
                                 in_position, position_type, entry_price, entry_time, sl_price, tp_price = True, "LONG", p_entry, current_time, p_sl, p_tp
+                                original_sl = p_sl
                                 pending_order = None
                                 logger.info(f"[{current_time}] Long Filled (SMC) at {entry_price}")
                                 continue
@@ -493,6 +510,7 @@ def run_backtest(
                             if shares > 0:
                                 balance = balance + (p_entry * shares) - (p_entry * shares * 0.001425 * fee_discount)
                                 in_position, position_type, entry_price, entry_time, sl_price, tp_price = True, "SHORT", p_entry, current_time, p_sl, p_tp
+                                original_sl = p_sl
                                 pending_order = None
                                 logger.info(f"[{current_time}] Short Filled (SMC) at {entry_price}")
                                 continue
@@ -506,8 +524,73 @@ def run_backtest(
                 can_trade_long = (day_htf is not None and day_htf['bias'] == "BULLISH" and day_htf['equilibrium'] is not None and close_ltf < day_htf['equilibrium'])
                 can_trade_short = (day_htf is not None and day_htf['bias'] == "BEARISH" and enable_short and day_htf['equilibrium'] is not None and close_ltf > day_htf['equilibrium'])
 
+                # 模式 0: PA 依 Order Block 反轉確認 + 限價進場 (ob_pa_limit - 最佳獲利實戰推薦)
+                if entry_mode in ["ob_pa_limit", "pa_ob_limit"]:
+                    bullish_ob = day_htf.get("bullish_ob") if day_htf else None
+                    bearish_ob = day_htf.get("bearish_ob") if day_htf else None
+
+                    open_ltf = row['open']
+                    prev_bar = df_backtest_ltf.iloc[idx - 1]
+                    prev_open = prev_bar['open']
+                    prev_close = prev_bar['close']
+                    candle_range = max(high_ltf - low_ltf, 0.001)
+
+                    if can_trade_long and bullish_ob:
+                        p_entry = bullish_ob['top']
+                        if low_ltf <= p_entry and close_ltf >= (bullish_ob['bottom'] - sl_buffer_pct * atr_ltf):
+                            is_bullish_bar = close_ltf >= open_ltf
+                            body_size = abs(close_ltf - open_ltf)
+                            lower_shadow = min(open_ltf, close_ltf) - low_ltf
+                            
+                            is_pinbar = (lower_shadow >= body_size * 1.0) and ((lower_shadow / candle_range) >= 0.35)
+                            is_engulfing = is_bullish_bar and (close_ltf > prev_open)
+
+                            if is_pinbar or is_engulfing:
+                                p_sl = max(bullish_ob['bottom'] - (sl_buffer_pct * atr_ltf), 0.1)
+                                if p_sl >= p_entry:
+                                    p_sl = p_entry - 0.5
+                                p_tp = p_entry + (p_entry - p_sl) * rr_ratio
+
+                                risk_amount = balance * risk_pct
+                                price_diff = p_entry - p_sl
+                                if price_diff > 0:
+                                    shares = int(min(risk_amount / price_diff, balance / p_entry))
+                                    if shares > 0:
+                                        balance = balance - (p_entry * shares) - (p_entry * shares * 0.001425 * fee_discount)
+                                        in_position, position_type, entry_price, entry_time, sl_price, tp_price = True, "LONG", p_entry, current_time, p_sl, p_tp
+                                        original_sl = p_sl
+                                        logger.info(f"[{current_time}] Long Filled (OB PA Reversal + Limit) at {entry_price}")
+                                        continue
+
+                    elif can_trade_short and bearish_ob and enable_short:
+                        p_entry = bearish_ob['bottom']
+                        if high_ltf >= p_entry and close_ltf <= (bearish_ob['top'] + sl_buffer_pct * atr_ltf):
+                            is_bearish_bar = close_ltf <= open_ltf
+                            body_size = abs(close_ltf - open_ltf)
+                            upper_shadow = high_ltf - max(open_ltf, close_ltf)
+
+                            is_pinbar = (upper_shadow >= body_size * 1.0) and ((upper_shadow / candle_range) >= 0.35)
+                            is_engulfing = is_bearish_bar and (close_ltf < prev_open)
+
+                            if is_pinbar or is_engulfing:
+                                p_sl = bearish_ob['top'] + (sl_buffer_pct * atr_ltf)
+                                if p_sl <= p_entry:
+                                    p_sl = p_entry + 0.5
+                                p_tp = p_entry - (p_sl - p_entry) * rr_ratio
+
+                                risk_amount = balance * risk_pct
+                                price_diff = p_sl - p_entry
+                                if price_diff > 0:
+                                    shares = int(min(risk_amount / price_diff, balance / p_entry))
+                                    if shares > 0:
+                                        balance = balance + (p_entry * shares) - (p_entry * shares * 0.001425 * fee_discount)
+                                        in_position, position_type, entry_price, entry_time, sl_price, tp_price = True, "SHORT", p_entry, current_time, p_sl, p_tp
+                                        original_sl = p_sl
+                                        logger.info(f"[{current_time}] Short Filled (OB PA Reversal + Limit) at {entry_price}")
+                                        continue
+
                 # 模式 A: PA 依 Order Block 反轉進場 (pa_ob)
-                if entry_mode == "pa_ob":
+                elif entry_mode == "pa_ob":
                     # 取得近 40 根 LTF K 棒計算滾動 LTF OB (動態且無未來函數)
                     sub_ltf = df_backtest_ltf.iloc[max(0, idx - 40):idx + 1]
                     ltf_obs = detect_order_blocks(sub_ltf, timeframe=ltf_timeframe, swing_window=2)
@@ -549,6 +632,7 @@ def run_backtest(
                                     if shares > 0:
                                         balance = balance - (p_entry * shares) - (p_entry * shares * 0.001425 * fee_discount)
                                         in_position, position_type, entry_price, entry_time, sl_price, tp_price = True, "LONG", p_entry, current_time, p_sl, p_tp
+                                        original_sl = p_sl
                                         logger.info(f"[{current_time}] Long Filled (LTF OB PA Reversal) at {entry_price}")
                                         continue
 
@@ -579,6 +663,7 @@ def run_backtest(
                                     if shares > 0:
                                         balance = balance + (p_entry * shares) - (p_entry * shares * 0.001425 * fee_discount)
                                         in_position, position_type, entry_price, entry_time, sl_price, tp_price = True, "SHORT", p_entry, current_time, p_sl, p_tp
+                                        original_sl = p_sl
                                         logger.info(f"[{current_time}] Short Filled (LTF OB PA Reversal) at {entry_price}")
                                         continue
 
@@ -602,6 +687,7 @@ def run_backtest(
                                 if shares > 0:
                                     balance = balance - (p_entry * shares) - (p_entry * shares * 0.001425 * fee_discount)
                                     in_position, position_type, entry_price, entry_time, sl_price, tp_price = True, "LONG", p_entry, current_time, p_sl, p_tp
+                                    original_sl = p_sl
                                     logger.info(f"[{current_time}] Long Filled (HTF {htf_timeframe.upper()} OB) at {entry_price}")
                                     continue
 
@@ -620,6 +706,7 @@ def run_backtest(
                                 if shares > 0:
                                     balance = balance + (p_entry * shares) - (p_entry * shares * 0.001425 * fee_discount)
                                     in_position, position_type, entry_price, entry_time, sl_price, tp_price = True, "SHORT", p_entry, current_time, p_sl, p_tp
+                                    original_sl = p_sl
                                     logger.info(f"[{current_time}] Short Filled (HTF {htf_timeframe.upper()} OB) at {entry_price}")
                                     continue
 
