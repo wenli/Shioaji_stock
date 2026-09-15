@@ -599,7 +599,8 @@
                     <div class="form-group" id="entry-mode-group" style="margin-bottom: 1rem;">
                         <label for="backtest-entry-mode">SMC 進場模式</label>
                         <select id="backtest-entry-mode">
-                            <option value="pa_ob">PA 依 Order Block 反轉進場 (PA + OB)</option>
+                            <option value="ob_pa_limit" selected>PA 反轉確認 + OB 限價進場 (🏆 推薦最佳獲利)</option>
+                            <option value="pa_ob">PA 依 Order Block 反轉進場 (市價追高)</option>
                             <option value="fvg_top">FVG 上沿進場</option>
                             <option value="fvg_mid">FVG 中點進場</option>
                             <option value="ob_open">OB (訂單塊) 開盤價進場</option>
@@ -642,9 +643,15 @@
 
                     </div>
 
-                    <div class="form-group" style="margin-bottom: 1.5rem;">
-                        <label for="backtest-fee-discount">手續費折讓</label>
-                        <input type="number" id="backtest-fee-discount" required min="0.0" max="1.0" step="0.05" value="0.60">
+                    <div class="form-row" style="margin-bottom: 1.5rem;">
+                        <div class="form-group">
+                            <label for="backtest-breakeven-rr">保本移損門檻 (R:R)</label>
+                            <input type="number" id="backtest-breakeven-rr" min="0.0" max="10.0" step="0.5" value="2.0" title="達到此盈虧比倍數時自動移損保本，填 0 關閉">
+                        </div>
+                        <div class="form-group">
+                            <label for="backtest-fee-discount">手續費折讓</label>
+                            <input type="number" id="backtest-fee-discount" required min="0.0" max="1.0" step="0.05" value="0.60">
+                        </div>
                     </div>
 
                     <button type="submit" id="run-btn" class="btn btn-primary" style="width: 100%;">
@@ -873,7 +880,8 @@
                 holding_mode: document.getElementById('backtest-holding').value,
                 htf_timeframe: document.getElementById('backtest-htf-timeframe').value,
                 ltf_timeframe: document.getElementById('backtest-timeframe').value,
-                strategy_name: document.getElementById('backtest-strategy') ? document.getElementById('backtest-strategy').value : 'smc'
+                strategy_name: document.getElementById('backtest-strategy') ? document.getElementById('backtest-strategy').value : 'smc',
+                breakeven_rr: parseFloat(document.getElementById('backtest-breakeven-rr') ? document.getElementById('backtest-breakeven-rr').value : 0.0)
             };
 
             try {

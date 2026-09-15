@@ -665,6 +665,71 @@
             align-items: center;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .radar-filter-group {
+            display: inline-flex;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 3px;
+            gap: 4px;
+        }
+
+        .radar-filter-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            padding: 5px 12px;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .radar-filter-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .radar-filter-btn.active {
+            background: rgba(0, 242, 254, 0.15);
+            color: var(--neon-blue);
+            border-color: rgba(0, 242, 254, 0.45);
+            font-weight: 600;
+            box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+        }
+
+        .badge-momentum-rec {
+            background: rgba(0, 255, 136, 0.15);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.4);
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 0 8px rgba(0, 255, 136, 0.2);
+        }
+
+        .badge-momentum-cons {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .radar-title-box {
@@ -1109,9 +1174,19 @@
                             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">監控 5M / 15M / 60M / 1D Order Block 關鍵進場熱區 (POI)</p>
                         </div>
                     </div>
-                    <span id="radar-count-badge" class="sync-badge" style="color: var(--neon-blue); border-color: rgba(0, 242, 254, 0.3); font-weight: 600;">
-                        <i class="fa-solid fa-radar fa-spin" style="margin-right: 4px;"></i>偵測中...
-                    </span>
+                    <div class="radar-header-controls" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                        <div class="radar-filter-group">
+                            <button type="button" class="radar-filter-btn active" id="filter-momentum-btn" onclick="setRadarFilter('momentum')">
+                                <i class="fa-solid fa-fire"></i> 僅看動能推薦 <span id="radar-momentum-count" style="opacity: 0.85;">(0)</span>
+                            </button>
+                            <button type="button" class="radar-filter-btn" id="filter-all-btn" onclick="setRadarFilter('all')">
+                                <i class="fa-solid fa-list-ul"></i> 全部觸及 <span id="radar-all-touch-count" style="opacity: 0.85;">(0)</span>
+                            </button>
+                        </div>
+                        <span id="radar-count-badge" class="sync-badge" style="color: var(--neon-blue); border-color: rgba(0, 242, 254, 0.3); font-weight: 600;">
+                            <i class="fa-solid fa-radar fa-spin" style="margin-right: 4px;"></i>偵測中...
+                        </span>
+                    </div>
                 </div>
                 <div id="radar-grid-container" class="radar-grid">
                     <div class="radar-empty">
@@ -1509,29 +1584,61 @@
             return html;
         }
 
+        // Radar Filter State
+        let currentRadarFilter = 'momentum';
+        let cachedStocksData = [];
+
+        function setRadarFilter(filter) {
+            currentRadarFilter = filter;
+            const btnMom = document.getElementById('filter-momentum-btn');
+            const btnAll = document.getElementById('filter-all-btn');
+            if (btnMom) btnMom.classList.toggle('active', filter === 'momentum');
+            if (btnAll) btnAll.classList.toggle('active', filter === 'all');
+            renderRadar(cachedStocksData);
+        }
+
         // Render OB Live Radar Grid
         function renderRadar(stocks) {
+            cachedStocksData = stocks || [];
             const grid = document.getElementById('radar-grid-container');
             const countBadge = document.getElementById('radar-count-badge');
+            const momCountEl = document.getElementById('radar-momentum-count');
+            const allCountEl = document.getElementById('radar-all-touch-count');
             if (!grid || !countBadge) return;
 
             const touchingStocks = stocks.filter(s => s.active_touches && s.active_touches.length > 0);
-            countBadge.innerHTML = `<i class="fa-solid fa-radar fa-spin" style="margin-right: 4px;"></i>${touchingStocks.length} 檔觸及熱區 / 共 ${stocks.length} 檔`;
+            const momentumTouching = touchingStocks.filter(s => s.is_momentum);
 
-            if (touchingStocks.length === 0) {
-                grid.innerHTML = `
-                    <div class="radar-empty" style="grid-column: 1 / -1;">
-                        <i class="fa-solid fa-satellite-dish" style="font-size: 2rem; color: var(--neon-blue); opacity: 0.6;"></i>
-                        <div>目前追蹤之 ${stocks.length} 檔個股無觸及關鍵 Order Block，系統持續多週期監控中...</div>
-                    </div>
-                `;
+            if (momCountEl) momCountEl.textContent = `(${momentumTouching.length})`;
+            if (allCountEl) allCountEl.textContent = `(${touchingStocks.length})`;
+
+            countBadge.innerHTML = `<i class="fa-solid fa-radar fa-spin" style="margin-right: 4px;"></i>${touchingStocks.length} 檔觸及 / 共 ${stocks.length} 檔`;
+
+            const displayStocks = currentRadarFilter === 'momentum' ? momentumTouching : touchingStocks;
+
+            if (displayStocks.length === 0) {
+                if (currentRadarFilter === 'momentum' && touchingStocks.length > 0) {
+                    grid.innerHTML = `
+                        <div class="radar-empty" style="grid-column: 1 / -1;">
+                            <i class="fa-solid fa-filter" style="font-size: 2rem; color: var(--neon-blue); opacity: 0.6;"></i>
+                            <div>目前 ${touchingStocks.length} 檔觸及標的皆屬盤整/整理結構。點擊上方「全部觸及」可查看完整清單。</div>
+                        </div>
+                    `;
+                } else {
+                    grid.innerHTML = `
+                        <div class="radar-empty" style="grid-column: 1 / -1;">
+                            <i class="fa-solid fa-satellite-dish" style="font-size: 2rem; color: var(--neon-blue); opacity: 0.6;"></i>
+                            <div>目前追蹤之 ${stocks.length} 檔個股無觸及關鍵 Order Block，系統持續多週期監控中...</div>
+                        </div>
+                    `;
+                }
                 return;
             }
 
             grid.innerHTML = '';
             const tfLabels = { '5k': '5M', '15k': '15M', '60k': '60M', '1d': '1D' };
 
-            touchingStocks.forEach(stock => {
+            displayStocks.forEach(stock => {
                 const item = document.createElement('div');
                 item.className = 'radar-item';
 
@@ -1626,10 +1733,23 @@
                     }
                 }
 
+                const momentumBadge = stock.is_momentum 
+                    ? `<span class="badge-momentum-rec"><i class="fa-solid fa-fire"></i> 動能推薦</span>`
+                    : `<span class="badge-momentum-cons">${stock.momentum_tag || '⚠️ 整理'}</span>`;
+
+                const volInfo = stock.avg_vol_20d ? `${stock.avg_vol_20d.toLocaleString()} 張` : '-';
+                const maInfo = stock.ma20 ? `20MA ${stock.ma20}` : '';
+
                 item.innerHTML = `
                     <div class="radar-item-top">
-                        <div class="stock-info">
-                            <span class="stock-code" style="font-size: 1.1rem;">${stock.code} <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-secondary);">${stock.name}</span></span>
+                        <div class="stock-info" style="display: flex; flex-direction: column; gap: 4px;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span class="stock-code" style="font-size: 1.1rem;">${stock.code} <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-secondary);">${stock.name}</span></span>
+                                ${momentumBadge}
+                            </div>
+                            <div style="font-size: 0.72rem; color: var(--text-secondary);">
+                                ${maInfo} ${maInfo && volInfo ? ' • ' : ''} 均量: ${volInfo}
+                            </div>
                         </div>
                         <div style="text-align: right;">
                             <div class="price-badge ${changeClass}">${stock.live_price !== 'N/A' ? parseFloat(stock.live_price).toFixed(2) : 'N/A'}</div>
