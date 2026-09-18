@@ -6,6 +6,9 @@
 
 📖 **詳細使用與操作說明請參閱：[系統使用與操作手冊 (User Guide)](docs/user_guide.md)**
 
+> [!WARNING]
+> **免責聲明 (Disclaimer)**：本軟體僅供教育與研究用途，不構成任何投資建議。股票/期貨交易具有高度風險，使用風險自負，詳見文末 [完整免責聲明](#-免責聲明-disclaimer)。
+
 ---
 
 ## 🌟 特色功能
@@ -248,3 +251,13 @@ c:\Intel\Shioaji_stock\
     * **回測模組 `ob_pa_limit` 進場模式**：在 [backtester.py](file:///c:/Intel/Shioaji_stock/app/backtester.py) 實作 Pinbar / 吞噬 K 線反轉確認後掛單 `OB Top` 的限價進場機制，不追高市價，將 50 檔回測淨損益由 -86 萬逆轉為 +38 萬。
     * **延後保本移損機制 (`breakeven_rr: 2.0`)**：支援自訂保本移損門檻，避免 1.0R 過早移損導致在 OB 頂部二次回踩時被洗出場。
     * **全清單量化消融實驗報告**：於 [docs/smc_strategy_report.md](docs/smc_strategy_report.md) 詳列 50 檔個股 90 天多週期回測損益排行榜與參數最佳實踐。
+
+---
+
+## ⚠️ 免責聲明 (Disclaimer)
+
+> [!CAUTION]
+> **本軟體僅供教育和研究用途。**
+> 
+> 期貨/股票交易具有高度風險，可能導致重大損失。歷史績效（含回測）不代表未來表現。使用風險自負，作者不承擔任何財務損失責任。
+
