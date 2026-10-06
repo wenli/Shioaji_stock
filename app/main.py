@@ -888,6 +888,16 @@ def get_multi_kbars(code: str, limit: int = 1000, anchor_time: str = None):
     finally:
         conn.close()
 
+@app.post("/api/reaggregate/{code}")
+def api_reaggregate_stock(code: str, background_tasks: BackgroundTasks):
+    """Re-aggregates 5k/15k/30k/60k/1d from existing stock1k data in SQLite."""
+    target = None if code.lower() == "all" else code
+    background_tasks.add_task(dsd.reaggregate_all_from_1k, target)
+    return {
+        "success": True,
+        "message": f"Re-aggregation started in background for {target or 'all stocks'}"
+    }
+
 @app.get("/chart/{code}", response_class=HTMLResponse)
 async def get_chart_page(code: str):
     """Serves the multi-timeframe chart page."""

@@ -410,7 +410,7 @@ def save_to_db(df: pd.DataFrame, table_name: str) -> int:
         conn.close()
 
 def aggregate_kbars(df_1k: pd.DataFrame, interval: str) -> pd.DataFrame:
-    """Aggregates 1k K-bars into higher timeframes (5m, 15m, 30m, 60m, 1d)."""
+    """Aggregates 1k K-bars into higher timeframes (5m, 15m, 30m, 60m, 1d) using Taiwan broker convention."""
     if df_1k.empty:
         return pd.DataFrame()
 
@@ -422,8 +422,11 @@ def aggregate_kbars(df_1k: pd.DataFrame, interval: str) -> pd.DataFrame:
         'volume': 'sum'
     }
 
-    # Resample with left closing/labeling (standard Taiwan Stock style)
-    resampled = df_1k.resample(interval, closed='left', label='left').agg(agg_rules)
+    # 日 K (D) 保持開盤日期標記 (label='left')；分 K (5k/15k/30k/60k) 改為台灣券商慣例的收盤時間標記 (label='right')
+    if interval in ['D', '1d']:
+        resampled = df_1k.resample(interval, closed='left', label='left').agg(agg_rules)
+    else:
+        resampled = df_1k.resample(interval, closed='left', label='right').agg(agg_rules)
     
     # Drop NaNs that occur outside trading hours
     resampled.dropna(subset=['open'], inplace=True)
@@ -432,10 +435,88 @@ def aggregate_kbars(df_1k: pd.DataFrame, interval: str) -> pd.DataFrame:
          resampled['code'] = df_1k['code'].iloc[0]
          
     resampled.reset_index(inplace=True)
-    resampled.rename(columns={'ts_datetime': 'ts'}, inplace=True)
+    time_col = 'ts_datetime' if 'ts_datetime' in resampled.columns else resampled.columns[0]
+    resampled.rename(columns={time_col: 'ts'}, inplace=True)
+    
+    if not pd.api.types.is_datetime64_any_dtype(resampled['ts']):
+        resampled['ts'] = pd.to_datetime(resampled['ts'])
+    
+    # 台股 60K 下午 13:00~13:30 僅 30 分鐘，resample 會標為 14:00:00，依台灣券商習慣修剪為 13:30:00
+    if interval == '60min':
+        resampled['ts'] = resampled['ts'].apply(
+            lambda dt: dt.replace(hour=13, minute=30) if dt.hour == 14 and dt.minute == 0 else dt
+        )
+
     resampled['ts'] = resampled['ts'].dt.strftime('%Y-%m-%d %H:%M:%S')
     
     return resampled
+
+
+def reaggregate_all_from_1k(code: str = None) -> dict:
+    """
+    Re-aggregates 5k, 15k, 30k, 60k, and 1d tables from existing stock1k data in SQLite,
+    then recalculates SMC Order Blocks.
+    If code is provided, only re-aggregates for that specific stock; otherwise re-aggregates all stocks.
+    """
+    conn = get_db_connection()
+    try:
+        if code:
+            stocks = [{"code": code}]
+        else:
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT code FROM stock1k")
+            stocks = [{"code": row[0]} for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+    total_stats = {}
+    intervals = {
+        "5k": "5min",
+        "15k": "15min",
+        "30k": "30min",
+        "60k": "60min",
+        "1d": "D"
+    }
+
+    for s in stocks:
+        target_code = s['code']
+        logger.info(f"Re-aggregating data for stock {target_code} from stock1k...")
+        conn = get_db_connection()
+        try:
+            df_1k = pd.read_sql_query(
+                "SELECT code, ts, open, high, low, close, volume FROM stock1k WHERE code = ? ORDER BY ts ASC",
+                conn,
+                params=(target_code,)
+            )
+        finally:
+            conn.close()
+
+        if df_1k.empty:
+            logger.warning(f"No stock1k data found for {target_code}")
+            continue
+
+        df_1k['ts_datetime'] = pd.to_datetime(df_1k['ts'])
+        df_1k.set_index('ts_datetime', inplace=True)
+
+        stock_stats = {}
+        for name, rule in intervals.items():
+            table_name = f"stock{name}"
+            conn = get_db_connection()
+            try:
+                conn.execute(f"DELETE FROM {table_name} WHERE code = ?", (target_code,))
+                conn.commit()
+            finally:
+                conn.close()
+
+            df_agg = aggregate_kbars(df_1k, rule)
+            inserted = save_to_db(df_agg, table_name)
+            stock_stats[name] = inserted
+
+        update_stock_obs(target_code)
+        logger.info(f"Re-aggregation complete for {target_code}: {stock_stats}")
+        total_stats[target_code] = stock_stats
+
+    return total_stats
 
 def download_stock_kbars(api, contract, start_date: str, end_date: str) -> dict:
     """Downloads 1k K-bars for a stock, aggregates to higher timeframes, and saves to DB."""
@@ -756,6 +837,18 @@ def sync_to_latest(api, code: str) -> dict:
         return {}
 
 if __name__ == "__main__":
-    logger.info("Starting Stock Database Initialization...")
-    init_db()
-    logger.info("Finished.")
+    import argparse
+    parser = argparse.ArgumentParser(description="Stock Data Downloader & Aggregator")
+    parser.add_argument("--init-db", action="store_true", help="Initialize database tables")
+    parser.add_argument("--reaggregate", nargs="?", const="all", default=None, help="Re-aggregate 5k/15k/30k/60k/1d from stock1k (optional: specify stock code or omit for all)")
+    args = parser.parse_args()
+
+    if args.reaggregate:
+        target = None if args.reaggregate == "all" else args.reaggregate
+        logger.info(f"Starting re-aggregation for: {target or 'all stocks'}")
+        stats = reaggregate_all_from_1k(target)
+        logger.info(f"Re-aggregation completed. Stats: {stats}")
+    else:
+        logger.info("Starting Stock Database Initialization...")
+        init_db()
+        logger.info("Finished.")
