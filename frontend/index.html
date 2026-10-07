@@ -732,6 +732,113 @@
             gap: 4px;
         }
 
+        /* High Win-Rate Confluence Badges & Cards */
+        .badge-grade-s {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 140, 0, 0.2));
+            color: #ffd700;
+            border: 1px solid rgba(255, 215, 0, 0.6);
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+            animation: pulse-glow-gold 2.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse-glow-gold {
+            0%, 100% { box-shadow: 0 0 6px rgba(255, 215, 0, 0.25); }
+            50% { box-shadow: 0 0 16px rgba(255, 215, 0, 0.6); }
+        }
+
+        .badge-grade-a {
+            background: rgba(0, 242, 254, 0.18);
+            color: #00f2fe;
+            border: 1px solid rgba(0, 242, 254, 0.5);
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.25);
+        }
+
+        .confluence-box {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 0.55rem 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            margin-top: 0.25rem;
+        }
+
+        .confluence-tags-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .conf-tag {
+            font-size: 0.7rem;
+            padding: 2px 7px;
+            border-radius: 5px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .conf-tag.trend-bull {
+            background: rgba(0, 230, 118, 0.12);
+            color: #00e676;
+            border-color: rgba(0, 230, 118, 0.3);
+        }
+
+        .conf-tag.trend-bear {
+            background: rgba(255, 51, 102, 0.12);
+            color: #ff3366;
+            border-color: rgba(255, 51, 102, 0.3);
+        }
+
+        .conf-tag.dr-discount {
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        .conf-tag.pa-fire {
+            background: rgba(255, 171, 0, 0.18);
+            color: #ffab00;
+            border-color: rgba(255, 171, 0, 0.4);
+            font-weight: 700;
+            box-shadow: 0 0 8px rgba(255, 171, 0, 0.2);
+        }
+
+        .conf-tag.pa-wait {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-secondary);
+            opacity: 0.85;
+        }
+
+        .optimal-trade-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.35rem;
+            padding-top: 0.4rem;
+            border-top: 1px dashed rgba(255, 215, 0, 0.25);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+        }
+
         .radar-title-box {
             display: flex;
             align-items: center;
@@ -1176,8 +1283,11 @@
                     </div>
                     <div class="radar-header-controls" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                         <div class="radar-filter-group">
+                            <button type="button" class="radar-filter-btn" id="filter-high-wr-btn" onclick="setRadarFilter('high_wr')">
+                                <i class="fa-solid fa-star" style="color: #ffd700;"></i> ⭐ 高勝率共振 (S/A級) <span id="radar-high-wr-count" style="opacity: 0.85;">(0)</span>
+                            </button>
                             <button type="button" class="radar-filter-btn active" id="filter-momentum-btn" onclick="setRadarFilter('momentum')">
-                                <i class="fa-solid fa-fire"></i> 僅看動能推薦 <span id="radar-momentum-count" style="opacity: 0.85;">(0)</span>
+                                <i class="fa-solid fa-fire"></i> 動能推薦 <span id="radar-momentum-count" style="opacity: 0.85;">(0)</span>
                             </button>
                             <button type="button" class="radar-filter-btn" id="filter-all-btn" onclick="setRadarFilter('all')">
                                 <i class="fa-solid fa-list-ul"></i> 全部觸及 <span id="radar-all-touch-count" style="opacity: 0.85;">(0)</span>
@@ -1547,12 +1657,19 @@
         }
 
         // Render micro chips for 5M, 15M, 60M, 1D in the table
-        function renderMicroOBChips(obStatus) {
+        function renderMicroOBChips(obStatus, highWinrateSetup) {
             if (!obStatus) return '<span style="color: var(--text-secondary);">-</span>';
             const tfLabels = { '5k': '5M', '15k': '15M', '60k': '60M', '1d': '1D' };
             const tfOrder = ['5k', '15k', '60k', '1d'];
             
             let html = '<div class="ob-indicators">';
+
+            if (highWinrateSetup && highWinrateSetup.grade === 'S+') {
+                html += `<span class="micro-chip" style="background: linear-gradient(135deg, rgba(255,215,0,0.3), rgba(255,140,0,0.25)); color:#ffd700; border:1px solid rgba(255,215,0,0.7); box-shadow:0 0 10px rgba(255,215,0,0.4); font-weight:700;" title="${highWinrateSetup.grade_badge}">⭐ S+</span>`;
+            } else if (highWinrateSetup && highWinrateSetup.grade === 'A') {
+                html += `<span class="micro-chip" style="background: rgba(0,242,254,0.2); color:#00f2fe; border:1px solid rgba(0,242,254,0.5); font-weight:700;" title="${highWinrateSetup.grade_badge}">💎 A</span>`;
+            }
+
             for (const tf of tfOrder) {
                 const label = tfLabels[tf];
                 const info = obStatus[tf];
@@ -1590,8 +1707,10 @@
 
         function setRadarFilter(filter) {
             currentRadarFilter = filter;
+            const btnHighWr = document.getElementById('filter-high-wr-btn');
             const btnMom = document.getElementById('filter-momentum-btn');
             const btnAll = document.getElementById('filter-all-btn');
+            if (btnHighWr) btnHighWr.classList.toggle('active', filter === 'high_wr');
             if (btnMom) btnMom.classList.toggle('active', filter === 'momentum');
             if (btnAll) btnAll.classList.toggle('active', filter === 'all');
             renderRadar(cachedStocksData);
@@ -1604,20 +1723,35 @@
             const countBadge = document.getElementById('radar-count-badge');
             const momCountEl = document.getElementById('radar-momentum-count');
             const allCountEl = document.getElementById('radar-all-touch-count');
+            const highWrCountEl = document.getElementById('radar-high-wr-count');
             if (!grid || !countBadge) return;
 
             const touchingStocks = stocks.filter(s => s.active_touches && s.active_touches.length > 0);
             const momentumTouching = touchingStocks.filter(s => s.is_momentum);
+            const highWrTouching = touchingStocks.filter(s => s.high_winrate_setup && (s.high_winrate_setup.grade === 'S+' || s.high_winrate_setup.grade === 'A'));
 
+            if (highWrCountEl) highWrCountEl.textContent = `(${highWrTouching.length})`;
             if (momCountEl) momCountEl.textContent = `(${momentumTouching.length})`;
             if (allCountEl) allCountEl.textContent = `(${touchingStocks.length})`;
 
             countBadge.innerHTML = `<i class="fa-solid fa-radar fa-spin" style="margin-right: 4px;"></i>${touchingStocks.length} 檔觸及 / 共 ${stocks.length} 檔`;
 
-            const displayStocks = currentRadarFilter === 'momentum' ? momentumTouching : touchingStocks;
+            let displayStocks = touchingStocks;
+            if (currentRadarFilter === 'high_wr') {
+                displayStocks = highWrTouching;
+            } else if (currentRadarFilter === 'momentum') {
+                displayStocks = momentumTouching;
+            }
 
             if (displayStocks.length === 0) {
-                if (currentRadarFilter === 'momentum' && touchingStocks.length > 0) {
+                if (currentRadarFilter === 'high_wr') {
+                    grid.innerHTML = `
+                        <div class="radar-empty" style="grid-column: 1 / -1;">
+                            <i class="fa-solid fa-star-half-stroke" style="font-size: 2rem; color: #ffd700; opacity: 0.6;"></i>
+                            <div>目前 ${touchingStocks.length} 檔觸及標的中尚無同時滿足【60K順勢+折價區/OB+5K價格行為】之 S/A 級共振標的。點擊「全部觸及」查看全部。</div>
+                        </div>
+                    `;
+                } else if (currentRadarFilter === 'momentum' && touchingStocks.length > 0) {
                     grid.innerHTML = `
                         <div class="radar-empty" style="grid-column: 1 / -1;">
                             <i class="fa-solid fa-filter" style="font-size: 2rem; color: var(--neon-blue); opacity: 0.6;"></i>
@@ -1733,6 +1867,59 @@
                     }
                 }
 
+                // High Win-Rate Confluence Section
+                const hwr = stock.high_winrate_setup || {};
+                let hwrBadgeHTML = '';
+                let confluenceHTML = '';
+
+                if (hwr.grade === 'S+') {
+                    hwrBadgeHTML = `<span class="badge-grade-s"><i class="fa-solid fa-crown"></i> ${hwr.grade_badge}</span>`;
+                } else if (hwr.grade === 'A') {
+                    hwrBadgeHTML = `<span class="badge-grade-a"><i class="fa-solid fa-gem"></i> ${hwr.grade_badge}</span>`;
+                }
+
+                if (hwr.grade && hwr.grade !== 'NONE') {
+                    const trendClass = hwr.is_htf_bullish ? 'trend-bull' : 'trend-bear';
+                    const trendIcon = hwr.is_htf_bullish ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down';
+                    const trendText = hwr.is_htf_bullish ? `60K 順勢 (≥${hwr.ema20_60k || 'EMA20'})` : `60K 逆勢 (<${hwr.ema20_60k || 'EMA20'})`;
+                    const paClass = hwr.has_pa_trigger ? 'pa-fire' : 'pa-wait';
+                    
+                    let optimalPlanHTML = '';
+                    if (hwr.trade_plan) {
+                        const tp = hwr.trade_plan;
+                        optimalPlanHTML = `
+                            <div class="optimal-trade-bar">
+                                <div class="tp-pill sl" title="ATR 保護停損 (-${tp.risk_pct}%)">
+                                    <span class="pill-label">SL 停損</span>
+                                    <span class="pill-val">${tp.stop_loss.toFixed(1)}</span>
+                                    <span class="pill-pct">-${tp.risk_pct}%</span>
+                                </div>
+                                <div class="tp-pill tp1" style="background: rgba(16, 185, 129, 0.18); border-color: rgba(16, 185, 129, 0.4); color: #34d399;" title="最優高勝率目標 1 (1:1.5 R:R, 實測勝率 62.86%)">
+                                    <span class="pill-label">TP1 (1:1.5 <b style="color:#ffd700;">62.8%</b>)</span>
+                                    <span class="pill-val">${tp.tp_1_5.toFixed(1)}</span>
+                                    <span class="pill-pct">+${tp.tp_1_5_gain_pct}%</span>
+                                </div>
+                                <div class="tp-pill tp2" style="background: rgba(0, 242, 254, 0.18); border-color: rgba(0, 242, 254, 0.4); color: #38bdf8;" title="最優高勝率目標 2 (1:2.0 R:R, 實測勝率 57.14%)">
+                                    <span class="pill-label">TP2 (1:2.0 <b style="color:#ffd700;">57.1%</b>)</span>
+                                    <span class="pill-val">${tp.tp_2_0.toFixed(1)}</span>
+                                    <span class="pill-pct">+${tp.tp_2_0_gain_pct}%</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    confluenceHTML = `
+                        <div class="confluence-box">
+                            <div class="confluence-tags-row">
+                                <span class="conf-tag ${trendClass}"><i class="fa-solid ${trendIcon}"></i> ${trendText}</span>
+                                <span class="conf-tag dr-discount"><i class="fa-solid fa-layer-group"></i> DR: ${hwr.dr_status}</span>
+                                <span class="conf-tag ${paClass}"><i class="fa-solid fa-bolt"></i> 5K: ${hwr.pa_pattern}</span>
+                            </div>
+                            ${optimalPlanHTML}
+                        </div>
+                    `;
+                }
+
                 const momentumBadge = stock.is_momentum 
                     ? `<span class="badge-momentum-rec"><i class="fa-solid fa-fire"></i> 動能推薦</span>`
                     : `<span class="badge-momentum-cons">${stock.momentum_tag || '⚠️ 整理'}</span>`;
@@ -1745,7 +1932,7 @@
                         <div class="stock-info" style="display: flex; flex-direction: column; gap: 4px;">
                             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 <span class="stock-code" style="font-size: 1.1rem;">${stock.code} <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-secondary);">${stock.name}</span></span>
-                                ${momentumBadge}
+                                ${hwrBadgeHTML || momentumBadge}
                             </div>
                             <div style="font-size: 0.72rem; color: var(--text-secondary);">
                                 ${maInfo} ${maInfo && volInfo ? ' • ' : ''} 均量: ${volInfo}
@@ -1759,7 +1946,8 @@
                     <div class="radar-item-badges">
                         ${obBadgesHTML}
                     </div>
-                    <div style="font-size: 0.75rem; color: var(--neon-blue); display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px;">
+                    ${confluenceHTML}
+                    <div style="font-size: 0.75rem; color: var(--neon-blue); display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 6px;">
                         <span>查看多週期圖表</span> <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.7rem;"></i>
                     </div>
                 `;
@@ -1847,7 +2035,7 @@
                 }
 
                 // Render micro OB chips
-                const obChipsHTML = renderMicroOBChips(stock.ob_status);
+                const obChipsHTML = renderMicroOBChips(stock.ob_status, stock.high_winrate_setup);
 
                 tr.innerHTML = `
                     <td>
