@@ -103,10 +103,13 @@ class FastStockSimulator:
         active_ob_bot = np.nan
 
         for i in range(n):
-            if not np.isnan(swing_highs[i]):
-                last_sh = swing_highs[i]
-            if not np.isnan(swing_lows[i]):
-                last_sl = swing_lows[i]
+            # No-lookahead: Swing confirmed only after w bars have elapsed (candidate is at i - w)
+            if i >= w:
+                cand = i - w
+                if not np.isnan(swing_highs[cand]):
+                    last_sh = swing_highs[cand]
+                if not np.isnan(swing_lows[cand]):
+                    last_sl = swing_lows[cand]
 
             dr_high[i] = last_sh
             dr_low[i] = last_sl
@@ -333,6 +336,7 @@ class FastStockSimulator:
 
             for k in range(entry_idx, min(n, entry_idx + max_bars)):
                 k_ts = pd.Timestamp(ts_arr[k])
+                k_open = opens[k]
                 k_high = highs[k]
                 k_low = lows[k]
                 k_close = closes[k]
@@ -350,10 +354,10 @@ class FastStockSimulator:
                         sl_price = entry_price
                         be_active = True
 
-                # Check SL
+                # Check SL (Conservative: Gap down opens below SL must fill at actual open price)
                 if k_low <= sl_price:
                     exit_idx = k
-                    exit_price = sl_price
+                    exit_price = min(k_open, sl_price)
                     exit_reason = "BE_HIT" if be_active else "SL_HIT"
                     break
 
