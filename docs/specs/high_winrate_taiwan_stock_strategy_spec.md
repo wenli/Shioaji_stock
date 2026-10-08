@@ -63,6 +63,20 @@ graph TD
   - **當沖 (Day Trade)**：13:20 強制平倉，不留倉。
   - **波段 (Swing)**：最多持倉 3~5 個交易日，遇 TP/SL 或超時再平倉。
 
+### 3.3 零未來數據保證規範 (Strict No-Lookahead Guarantee)
+為杜絕量化回測常見的偷看未來資料（Lookahead Bias），本策略與回測引擎恪遵以下四大鐵律：
+1. **Swing 頂底延遲確認 (Delayed Swing Confirmation)**：
+   - 60K Swing High / Low 判斷窗口為 $w=3$。第 $i$ 根 K 線若為轉折點，**必須等到第 $i+w$ 根收盤完成**，系統才被允許標記該點位為已知結構。
+   - 在 $i \sim i+w-1$ 區間內，Dealing Range 必須維持前一個已確認的區間，嚴禁在第 $i$ 根即時透支未來的 Swing 點位。
+2. **多週期時間戳嚴格對齊 (Multi-Timeframe Timestamp Alignment)**：
+   - 台股 K 線時間戳採用「K 棒結束標記」（如 10:00 代表 09:00~10:00 的 60K）。
+   - 5K 棒在 $t$ 時刻匹配 60K 時，僅能引用**已閉合完成之 60K 數據**，嚴禁以未走完之當前 60K 收盤價或 EMA 進行過濾。
+3. **跳空滑價與防禦撮合 (Gap-Down & Conservative Match)**：
+   - 次根 K 棒若開盤直接跳空跌破停損價（$Open < SL$），必須強制以真實 **開盤價 (Open)** 撮合成交，計入完整滑價虧損。
+   - 當同一根 K 線日內震幅同時觸及 SL 與 TP 時，一律以 **最悲觀情境 (SL 優先)** 結算，杜絕高估勝率。
+4. **實盤防重繪機制 (Repainting Prevention)**：
+   - 即時雷達與下單開火鍵嚴格以**上一根已閉合 5K (Completed Bar)** 為準；盤中跳動中尚未收盤之 K 線僅能標記為「試探中 (Pending)」，不得直接觸發確定單。
+
 ---
 
 ## 4. 極速向量化回測引擎架構 (Engine Specification)
