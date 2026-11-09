@@ -311,6 +311,49 @@ def calculate_trade_setup(ob_type: str, top: float, bottom: float) -> dict | Non
         risk_pct = round((risk / mid) * 100.0, 2) if mid > 0 else 0
         tp1_gain_pct = round(((tp1 - mid) / mid) * 100.0, 2) if mid > 0 else 0
         tp2_gain_pct = round(((tp2 - mid) / mid) * 100.0, 2) if mid > 0 else 0
+
+        left_side = {
+            "type": "LEFT_POI",
+            "label": "左側 POI 掛單",
+            "entry_range": [bottom, top],
+            "entry_mid": mid,
+            "entry_trigger": f"{bottom:.2f} ~ {top:.2f} 逢低分批",
+            "stop_loss": sl,
+            "risk": risk,
+            "risk_pct": risk_pct,
+            "tp1": tp1,
+            "tp1_gain_pct": tp1_gain_pct,
+            "tp2": tp2,
+            "tp2_gain_pct": tp2_gain_pct,
+            "rr_label": "1:2 / 1:3",
+            "description": "於 Order Block 折價區分批限價掛單，追求最佳損益比"
+        }
+
+        # Right-side setup: breakout confirmation above OB top
+        trigger_p = round(top + max(spread * 0.05, 0.05), 2)
+        sl_r = round(bottom, 2)
+        risk_r = round(max(trigger_p - sl_r, 0.1), 2)
+        tp1_r = round(trigger_p + (2.0 * risk_r), 2)
+        tp2_r = round(trigger_p + (3.0 * risk_r), 2)
+        risk_pct_r = round((risk_r / trigger_p) * 100.0, 2) if trigger_p > 0 else 0
+        tp1_pct_r = round(((tp1_r - trigger_p) / trigger_p) * 100.0, 2) if trigger_p > 0 else 0
+        tp2_pct_r = round(((tp2_r - trigger_p) / trigger_p) * 100.0, 2) if trigger_p > 0 else 0
+
+        right_side = {
+            "type": "RIGHT_CONFIRM",
+            "label": "右側突破確認",
+            "trigger_price": trigger_p,
+            "entry_trigger": f"帶量突破 {trigger_p:.2f}",
+            "stop_loss": sl_r,
+            "risk": risk_r,
+            "risk_pct": risk_pct_r,
+            "tp1": tp1_r,
+            "tp1_gain_pct": tp1_pct_r,
+            "tp2": tp2_r,
+            "tp2_gain_pct": tp2_pct_r,
+            "rr_label": "1:2 / 1:3",
+            "description": "次級結構轉折 (CHoCH) 或帶量長紅突破上緣追價"
+        }
         
         return {
             "direction": "LONG",
@@ -323,7 +366,13 @@ def calculate_trade_setup(ob_type: str, top: float, bottom: float) -> dict | Non
             "tp1_gain_pct": tp1_gain_pct,
             "tp2": tp2,
             "tp2_gain_pct": tp2_gain_pct,
-            "rr_label": "1:2 / 1:3"
+            "rr_label": "1:2 / 1:3",
+            "left_side": left_side,
+            "right_side": right_side,
+            "dual_setup": {
+                "left": left_side,
+                "right": right_side
+            }
         }
     elif ob_upper == "BEARISH":
         # Protective buffer above OB top (at least 0.5% or 0.1)
@@ -339,6 +388,49 @@ def calculate_trade_setup(ob_type: str, top: float, bottom: float) -> dict | Non
         risk_pct = round((risk / mid) * 100.0, 2) if mid > 0 else 0
         tp1_gain_pct = round(((mid - tp1) / mid) * 100.0, 2) if mid > 0 else 0
         tp2_gain_pct = round(((mid - tp2) / mid) * 100.0, 2) if mid > 0 else 0
+
+        left_side = {
+            "type": "LEFT_POI",
+            "label": "左側 POI 掛單",
+            "entry_range": [bottom, top],
+            "entry_mid": mid,
+            "entry_trigger": f"{bottom:.2f} ~ {top:.2f} 逢高反彈空",
+            "stop_loss": sl,
+            "risk": risk,
+            "risk_pct": risk_pct,
+            "tp1": tp1,
+            "tp1_gain_pct": tp1_gain_pct,
+            "tp2": tp2,
+            "tp2_gain_pct": tp2_gain_pct,
+            "rr_label": "1:2 / 1:3",
+            "description": "於 Order Block 溢價區分批限價掛空，追求最佳損益比"
+        }
+
+        # Right-side setup: breakdown confirmation below OB bottom
+        trigger_p = round(max(0.1, bottom - max(spread * 0.05, 0.05)), 2)
+        sl_r = round(top, 2)
+        risk_r = round(max(sl_r - trigger_p, 0.1), 2)
+        tp1_r = round(max(0.1, trigger_p - (2.0 * risk_r)), 2)
+        tp2_r = round(max(0.1, trigger_p - (3.0 * risk_r)), 2)
+        risk_pct_r = round((risk_r / trigger_p) * 100.0, 2) if trigger_p > 0 else 0
+        tp1_pct_r = round(((trigger_p - tp1_r) / trigger_p) * 100.0, 2) if trigger_p > 0 else 0
+        tp2_pct_r = round(((trigger_p - tp2_r) / trigger_p) * 100.0, 2) if trigger_p > 0 else 0
+
+        right_side = {
+            "type": "RIGHT_CONFIRM",
+            "label": "右側跌破確認",
+            "trigger_price": trigger_p,
+            "entry_trigger": f"跌破 {trigger_p:.2f} 確認",
+            "stop_loss": sl_r,
+            "risk": risk_r,
+            "risk_pct": risk_pct_r,
+            "tp1": tp1_r,
+            "tp1_gain_pct": tp1_pct_r,
+            "tp2": tp2_r,
+            "tp2_gain_pct": tp2_pct_r,
+            "rr_label": "1:2 / 1:3",
+            "description": "次級結構轉折或跌破下緣確認偏空追單"
+        }
         
         return {
             "direction": "SHORT",
@@ -351,7 +443,13 @@ def calculate_trade_setup(ob_type: str, top: float, bottom: float) -> dict | Non
             "tp1_gain_pct": tp1_gain_pct,
             "tp2": tp2,
             "tp2_gain_pct": tp2_gain_pct,
-            "rr_label": "1:2 / 1:3"
+            "rr_label": "1:2 / 1:3",
+            "left_side": left_side,
+            "right_side": right_side,
+            "dual_setup": {
+                "left": left_side,
+                "right": right_side
+            }
         }
     return None
 
