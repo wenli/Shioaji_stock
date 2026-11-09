@@ -16,9 +16,21 @@ import download_stock_data as dsd
 import scheduler_manager as sm
 import pandas as pd
 import numpy as np
+from fastapi.encoders import ENCODERS_BY_TYPE
 from app import backtester
 from app import smc_detector
 from app import chip_fundamental_fetcher
+
+# FastAPI 序列化相容性防護：支援 NumPy 2.x 純量型別 (numpy.bool_, numpy.int64, numpy.float64 等)
+try:
+    ENCODERS_BY_TYPE[np.bool_] = bool
+    for _int_type in [np.int8, np.int16, np.int32, np.int64, np.uint8, np.uint16, np.uint32, np.uint64]:
+        ENCODERS_BY_TYPE[_int_type] = int
+    for _float_type in [np.float16, np.float32, np.float64]:
+        ENCODERS_BY_TYPE[_float_type] = float
+    ENCODERS_BY_TYPE[np.ndarray] = lambda x: x.tolist()
+except Exception as _enc_err:
+    pass
 
 # Setup Logging
 logging.basicConfig(
@@ -390,8 +402,18 @@ def get_wishlist():
             except Exception as e:
                 logger.error(f"Error calculating momentum for {code}: {e}")
 
+<<<<<<< HEAD
             # Fetch Chips & Fundamental profile (Foreign/Trust chips, Revenue YoY, PE)
             chips_fund = chip_fundamental_fetcher.get_chips_and_fundamentals(conn, code)
+=======
+            # 計算高勝率共振 (SMC + Dealing Range + Galen Woods PA + 60K EMA20)
+            high_winrate_setup = smc_detector.calculate_high_winrate_confluence(
+                conn=conn,
+                code=code,
+                live_price=close_price,
+                ob_status=ob_status
+            )
+>>>>>>> 7e2fe6678e22bddb137d2bdec27d3ef9cee97f54
 
             result.append({
                 "code": code,
@@ -414,11 +436,15 @@ def get_wishlist():
                 "avg_vol_20d": avg_vol_20d,
                 "ma20": ma20_val,
                 "ma60": ma60_val,
+<<<<<<< HEAD
                 "chips": chips_fund,
                 "chip_tag": chips_fund.get("chip_tag", ""),
                 "fund_tag": chips_fund.get("fund_tag", ""),
                 "revenue_yoy": chips_fund.get("revenue_yoy", 0.0),
                 "pe_ratio": chips_fund.get("pe_ratio", 0.0)
+=======
+                "high_winrate_setup": high_winrate_setup
+>>>>>>> 7e2fe6678e22bddb137d2bdec27d3ef9cee97f54
             })
     finally:
         conn.close()
@@ -427,13 +453,15 @@ def get_wishlist():
 
 @app.get("/api/ob-radar")
 def get_ob_radar():
-    """Returns all stocks that are actively touching any 5M, 15M, 60M, or 1D Order Block."""
+    """Returns all stocks that are actively touching any 5M, 15M, 60M, or 1D Order Block with high-winrate confluence."""
     all_stocks = get_wishlist()
     touching_stocks = [s for s in all_stocks if s.get("active_touches") and len(s["active_touches"]) > 0]
     momentum_touching = [s for s in touching_stocks if s.get("is_momentum")]
+    high_wr_touching = [s for s in touching_stocks if s.get("high_winrate_setup", {}).get("grade") in ["S+", "A"]]
     return {
         "count": len(touching_stocks),
         "momentum_count": len(momentum_touching),
+        "high_winrate_count": len(high_wr_touching),
         "stocks": touching_stocks,
         "all_monitored_count": len(all_stocks)
     }
@@ -1032,6 +1060,16 @@ def get_multi_kbars(code: str, limit: int = 1000, anchor_time: str = None):
         raise HTTPException(status_code=500, detail="Database query failed.")
     finally:
         conn.close()
+
+@app.post("/api/reaggregate/{code}")
+def api_reaggregate_stock(code: str, background_tasks: BackgroundTasks):
+    """Re-aggregates 5k/15k/30k/60k/1d from existing stock1k data in SQLite."""
+    target = None if code.lower() == "all" else code
+    background_tasks.add_task(dsd.reaggregate_all_from_1k, target)
+    return {
+        "success": True,
+        "message": f"Re-aggregation started in background for {target or 'all stocks'}"
+    }
 
 @app.get("/chart/{code}", response_class=HTMLResponse)
 async def get_chart_page(code: str):
