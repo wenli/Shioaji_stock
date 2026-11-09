@@ -402,10 +402,6 @@ def get_wishlist():
             except Exception as e:
                 logger.error(f"Error calculating momentum for {code}: {e}")
 
-<<<<<<< HEAD
-            # Fetch Chips & Fundamental profile (Foreign/Trust chips, Revenue YoY, PE)
-            chips_fund = chip_fundamental_fetcher.get_chips_and_fundamentals(conn, code)
-=======
             # 計算高勝率共振 (SMC + Dealing Range + Galen Woods PA + 60K EMA20)
             high_winrate_setup = smc_detector.calculate_high_winrate_confluence(
                 conn=conn,
@@ -413,7 +409,9 @@ def get_wishlist():
                 live_price=close_price,
                 ob_status=ob_status
             )
->>>>>>> 7e2fe6678e22bddb137d2bdec27d3ef9cee97f54
+
+            # Fetch Chips & Fundamental profile (Foreign/Trust chips, Revenue YoY, PE)
+            chips_fund = chip_fundamental_fetcher.get_chips_and_fundamentals(conn, code)
 
             result.append({
                 "code": code,
@@ -436,15 +434,12 @@ def get_wishlist():
                 "avg_vol_20d": avg_vol_20d,
                 "ma20": ma20_val,
                 "ma60": ma60_val,
-<<<<<<< HEAD
                 "chips": chips_fund,
                 "chip_tag": chips_fund.get("chip_tag", ""),
                 "fund_tag": chips_fund.get("fund_tag", ""),
                 "revenue_yoy": chips_fund.get("revenue_yoy", 0.0),
-                "pe_ratio": chips_fund.get("pe_ratio", 0.0)
-=======
+                "pe_ratio": chips_fund.get("pe_ratio", 0.0),
                 "high_winrate_setup": high_winrate_setup
->>>>>>> 7e2fe6678e22bddb137d2bdec27d3ef9cee97f54
             })
     finally:
         conn.close()

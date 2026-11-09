@@ -2177,13 +2177,9 @@
                         <div class="stock-info" style="display: flex; flex-direction: column; gap: 4px;">
                             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 <span class="stock-code" style="font-size: 1.1rem;">${stock.code} <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-secondary);">${stock.name}</span></span>
-<<<<<<< HEAD
-                                ${momentumBadge}
+                                ${hwrBadgeHTML || momentumBadge}
                                 ${chipBadge}
                                 ${fundBadge}
-=======
-                                ${hwrBadgeHTML || momentumBadge}
->>>>>>> 7e2fe6678e22bddb137d2bdec27d3ef9cee97f54
                             </div>
                             <div style="font-size: 0.72rem; color: var(--text-secondary);">
                                 ${maInfo} ${maInfo && volInfo ? ' • ' : ''} 均量: ${volInfo}
@@ -2197,17 +2193,12 @@
                     <div class="radar-item-badges">
                         ${obBadgesHTML}
                     </div>
-<<<<<<< HEAD
+                    ${confluenceHTML}
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.06);">
                         <button class="btn-radar-analysis" onclick="openStockAnalysis('${stock.code}', event)"><i class="fa-solid fa-file-waveform"></i> 戰略分析</button>
                         <div style="font-size: 0.75rem; color: var(--neon-blue); display: flex; align-items: center; gap: 4px;">
                             <span>進入圖表</span> <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.7rem;"></i>
                         </div>
-=======
-                    ${confluenceHTML}
-                    <div style="font-size: 0.75rem; color: var(--neon-blue); display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 6px;">
-                        <span>查看多週期圖表</span> <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.7rem;"></i>
->>>>>>> 7e2fe6678e22bddb137d2bdec27d3ef9cee97f54
                     </div>
                 `;
 

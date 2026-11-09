@@ -53,11 +53,7 @@
    * **Yahoo 獨立下載與台北時區對齊**：Yahoo 模式下不下載 1m 分K，而是直接獨立拉取 `5m`、`15m`、`30m`、`60m`、`1d` 的 K 線資料，並自動轉換為 `Asia/Taipei` (UTC+8) 寫入。
    * **防封鎖與上限保護**：每次請求間隔 **1 秒** 防止 IP 遭 Yahoo 封鎖；針對短週期 (5m/15m/30m) 自動實施 **55 天安全下載上限**，避免觸發 Yahoo API 的 60 天硬性天數限制。
 
-<<<<<<< HEAD
-8. **🎯 多週期 Order Block (OB) 即時雷達、法人籌碼與雙軌進場計畫**
-=======
-8. **🎯 多週期 Order Block (OB) 即時雷達與 S+/A 級高勝率共振系統**
->>>>>>> 7e2fe6678e22bddb137d2bdec27d3ef9cee97f54
+8. **🎯 多週期 Order Block (OB) 即時雷達、S+/A 級高勝率共振與雙軌交易計畫**
    * **多週期 SMC 引擎 (`smc_detector.py`)**：自動針對 **5M、15M、60M、1Day** 四個週期識別市場結構破壞 (BOS) 與前置反向 K 線 Order Block。
    * **未緩解過濾 (Mitigation Check)**：自動排除已被後續 K 棒完全擊破的失效區間，確保僅鎖定最新有效的機構訂單塊。
    * **⭐ S+/A 級黃金高勝率共振雷達**：
@@ -67,16 +63,11 @@
        * 🏆 **計畫 A (TP1 1:1.5)**：歷史實證勝率 **62.86%**、平均報酬 **+0.93%**（適合穩健落袋）。
        * 🚀 **計畫 B (TP2 1:2.0)**：歷史實證勝率 **57.14%**、平均報酬 **+3.11%**（適合波段放量）。
    * **高動能趨勢濾網 (Momentum Filter)**：自動計算 20MA（月線）、60MA（季線）與 20日均量，即時標註 `🚀 高動能推薦`、`📈 多頭結構`、`📉 空頭走勢`、`⚠️ 盤整/低量`。
-<<<<<<< HEAD
    * **三維指標微徽章 (Tri-factor Badges)**：雷達卡片直接點亮三大法人籌碼（如 `🔥 外資連8買`）與基本面財務標籤（如 `💎 低本益比高成長`），主力控盤一目了然。
    * **雙軌進場微型切換 (Dual Execution Toggle)**：卡片內建 `[左側 POI | 右側突破]` 模式切換鈕，即時平滑切換「左側折價區限價低接」與「右側結構翻多/帶量突破」的進場條件、保護停損 (SL)、階梯停利 (TP1 1:2 / TP2 1:3)。
    * **一鍵戰略分析彈窗 (Strategy Modal)**：卡片提供「戰略分析」按鈕，0 延遲秒開 Glassmorphism 彈窗，渲染決策路徑 Mermaid 流程圖、三維分析指標卡與風控矩陣表，並支援一鍵複製文字交易計畫。
-   * **即時雷達動能快篩**：首頁 OB 雷達提供一鍵切換「`🚀 僅看動能推薦 (N)`」與「`📋 全部觸及 (N)`」，瞬間過濾死水盤整股，聚焦最強動能標的。
-   * **高能效持久化快取**：於資料庫維護 `stock_order_blocks` 與 `stock_chips_fundamentals` 快取表，保障首頁毫秒級響應。
-=======
    * **即時雷達多維度快篩**：首頁 OB 雷達提供一鍵切換「`⭐ 高勝率共振 (N)`」、「`🚀 僅看動能推薦 (N)`」與「`📋 全部觸及 (N)`」，瞬間過濾死水盤整股，聚焦主力進攻與高勝率標的。
-   * **高能效持久化快取**：於資料庫維護 `stock_order_blocks` 快取表，在 K 線同步時自動預算，保障首頁毫秒級響應。
->>>>>>> 7e2fe6678e22bddb137d2bdec27d3ef9cee97f54
+   * **高能效持久化快取**：於資料庫維護 `stock_order_blocks` 與 `stock_chips_fundamentals` 快取表，保障首頁毫秒級響應。
 
 9. **📑 現代分段卡片式 Tab 儀表板架構 (Segmented Card Tabs)**
    * 首頁採用現代 macOS / iOS 深色分段卡片風格，分為四大專屬分頁：
@@ -128,18 +119,14 @@ c:\Intel\Shioaji_stock\
 ├── app/
 │   ├── main.py              # FastAPI 服務入口、Web APIs、APScheduler 生命週期
 │   ├── backtester.py        # 核心多策略回測引擎 (SMC, EMA, BB, KD)
-<<<<<<< HEAD
-│   ├── smc_detector.py      # SMC Order Block 識別、雙軌 Trade Setup 與多週期快取模組
+│   ├── fast_stock_simulator.py # ⚡ 極速向量化多特徵回測模擬引擎 (單次回測 70ms，加速百倍)
+│   ├── smc_detector.py      # SMC Order Block 識別、S+/A 級共振判斷、雙軌 Trade Setup 與多週期快取模組
 │   └── chip_fundamental_fetcher.py # 外資/投信籌碼與營收基本面指標快取模組
 ├── .agent/                  # Antigravity Agent 客製化設定與技能庫 (受 .gitignore 保護)
 │   ├── rules/
 │   │   └── tw-stock-analysis.md # 台股三維複合分析標準 (SMC結構 × 法人籌碼 × 雙軌風控)
 │   └── skills/
 │       └── ob-live-radar/   # SMC 觸及即時雷達與交易計畫實作技能 (v0.2.0)
-=======
-│   ├── fast_stock_simulator.py # ⚡ 極速向量化多特徵回測模擬引擎 (單次回測 70ms，加速百倍)
-│   └── smc_detector.py      # SMC Order Block 識別、S+/A 級共振判斷與多週期快取模組
->>>>>>> 7e2fe6678e22bddb137d2bdec27d3ef9cee97f54
 ├── data/                    # SQLite 資料庫集中存放目錄 (受 .gitignore 保護)
 │   ├── Shioaji.db           # Shioaji 資料庫 (儲存願望清單、排除清單、K線與 OB 快取)
 │   └── Y.db                 # Yahoo 資料庫 (獨立隔離儲存)
@@ -182,12 +169,8 @@ c:\Intel\Shioaji_stock\
 | `POST`| `/api/excluded_list` | 手動新增股票至排除清單 |
 | `DELETE`| `/api/excluded_list/{code}` | 自排除清單移除股票（解除排除） |
 | `POST`| `/api/excluded_list/restore/{code}` | 將排除股票恢復至追蹤清單並啟動背景更新 |
-<<<<<<< HEAD
-| `GET` | `/api/ob-radar` | 取得 SMC Order Block (POI) 觸及狀態、法人籌碼、動能統計 (`momentum_count`) 與雷達清單 |
+| `GET` | `/api/ob-radar` | 取得 SMC POI 觸及狀態、**S+/A 級共振計畫 (`high_winrate_setup`)**、**高勝率數量 (`high_winrate_count`)**、法人籌碼與動能統計 |
 | `GET` | `/api/stock-analysis-report/{code}` | 取得單檔股票三維複合分析報告 (SMC 結構、法人外資籌碼、基本面、雙軌 Trade Setup 與 Mermaid 流程圖) |
-=======
-| `GET` | `/api/ob-radar` | 取得 SMC POI 觸及狀態、**S+/A 級共振計畫 (`high_winrate_setup`)**、**高勝率數量 (`high_winrate_count`)** 與動能統計 |
->>>>>>> 7e2fe6678e22bddb137d2bdec27d3ef9cee97f54
 | `GET` | `/api/system/db-info` | 取得當前 SQLite 資料庫目錄 (`DB_DIR`)、啟用檔案與容量資訊 |
 | `GET` | `/api/stock/{code}` | 獲取特定個股合約名稱（整合 Shioaji 與 DB Fallback 查詢機制） |
 | `GET` | `/api/kbars/multi/{code}`| 一鍵查詢單檔股票多週期 (5K, 15K, 60K, 日K) 的量價數據與標準 SMC OB 區間 |
@@ -333,16 +316,6 @@ c:\Intel\Shioaji_stock\
     * **回測模組 `ob_pa_limit` 進場模式**：在 [backtester.py](file:///c:/Intel/Shioaji_stock/app/backtester.py) 實作 Pinbar / 吞噬 K 線反轉確認後掛單 `OB Top` 的限價進場機制，不追高市價，將 50 檔回測淨損益由 -86 萬逆轉為 +38 萬。
     * **延後保本移損機制 (`breakeven_rr: 2.0`)**：支援自訂保本移損門檻，避免 1.0R 過早移損導致在 OB 頂部二次回踩時被洗出場。
     * **全清單量化消融實驗報告**：於 [docs/smc_strategy_report.md](docs/smc_strategy_report.md) 詳列 50 檔個股 90 天多週期回測損益排行榜與參數最佳實踐。
-<<<<<<< HEAD
-21. **🎯 台股三維複合交易規範 (`tw-stock-analysis.md`) 與 OB 即時雷達雙軌升級**：
-    * **三維複合指標 (`chip_fundamental_fetcher.py`)**：新增三大法人外資/投信近 5 日買賣超與連買天數、最新營收年增率 (YoY) 與本益比 (PE) 估值，並寫入 SQLite 快取表。
-    * **雙軌 Trade Setup 演算法 (`smc_detector.py`)**：擴充計算「劇本 A：左側 POI 限價掛單（追求極佳盈虧比）」與「劇本 B：右側結構翻多確認（追求資金週轉效率）」，依據 Order Block 結構輸出保護停損 (SL)、第一目標 (TP1 1:2) 與第二目標 (TP2 1:3)。
-    * **雷達卡片互動升級 (`frontend/index.html`)**：
-      * 卡片標題即時點亮外資連買與低估值成長徽章。
-      * 每個 OB 觸及區塊內嵌 `[左側 POI | 右側突破]` 微型切換按鈕，點擊即時無縫切換進場價位與階梯風控膠囊。
-      * 底部新增「戰略分析」按鈕，點擊以 Glassmorphism 彈窗 0 延遲渲染三維指標現況、雙軌風控對照矩陣與 Mermaid 決策流程圖，並提供「複製完整文字計畫」按鈕。
-    * **Agent 技能規範升級**：將 [.agent/skills/ob-live-radar/SKILL.md](file:///c:/Intel/Shioaji_stock/.agent/skills/ob-live-radar/SKILL.md) 升級至 `v0.2.0`，正式整合 [.agent/rules/tw-stock-analysis.md](file:///c:/Intel/Shioaji_stock/.agent/rules/tw-stock-analysis.md) 台股分析標準。
-=======
 21. **🌟 實裝高勝率 SMC 共振雷達 (S+/A 級) 與極速向量化回測引擎 (`FastStockSimulator`)**：
     * **⚡ 極速向量化模擬引擎**：於 [app/fast_stock_simulator.py](file:///c:/Intel/Shioaji_stock/app/fast_stock_simulator.py) 研發特徵預算快取技術，5 檔股票 8 萬多根 K 棒 1.2 秒載入，單次回測僅 70ms，以 315 秒完成 4,500 組全參數網格回測（較原引擎提速逾 100 倍）。
     * **實證高勝率策略重大突破**：驗證「60K EMA20 順勢 + Dealing Range 深度折價/SSL 掃蕩 + 5K Galen Woods PA + ATR 階梯風控」，勝率躍升至 **57.14% ~ 62.86%**，期望值全面轉正（平均單筆報酬 +0.93% ~ +3.11%）。
@@ -356,6 +329,14 @@ c:\Intel\Shioaji_stock\
     * **嚴格防偷看未來機制**：在 [app/fast_stock_simulator.py](file:///c:/Intel/Shioaji_stock/app/fast_stock_simulator.py) 實作 60K Swing 延遲 3 根 K 線生效確認機制，並模擬盤中真實開盤跳空撮合，完全杜絕傳統量化策略的前瞻偷看偏誤 (Lookahead Bias)。
     * **12,960 次全參數網格回測**：涵蓋大盤 ETF、半導體、AI 伺服器、航運、塑化、鋼鐵與金融等 15 檔代表性個股（逾 25 萬根高頻 K 線），證實 Dealing Range 順勢折價與清掃架構大樣本勝率達 **58.82%**，核心個股（0050、2317、2454、5351）勝率更達 **80% ~ 90%**。
     * **完整研究報告上線**：於 [docs/high_winrate_smc_results_report.md](docs/high_winrate_smc_results_report.md) 發布大樣本回測結果、勝率衰減矩陣與個股最佳參數對照表。
+24. **🎯 台股三維複合交易規範 (`tw-stock-analysis.md`) 與 OB 即時雷達雙軌升級**：
+    * **三維複合指標 (`chip_fundamental_fetcher.py`)**：新增三大法人外資/投信近 5 日買賣超與連買天數、最新營收年增率 (YoY) 與本益比 (PE) 估值，並寫入 SQLite 快取表。
+    * **雙軌 Trade Setup 演算法 (`smc_detector.py`)**：擴充計算「劇本 A：左側 POI 限價掛單（追求極佳盈虧比）」與「劇本 B：右側結構翻多確認（追求資金週轉效率）」，依據 Order Block 結構輸出保護停損 (SL)、第一目標 (TP1 1:2) 與第二目標 (TP2 1:3)。
+    * **雷達卡片互動升級 (`frontend/index.html`)**：
+      * 卡片標題即時點亮外資連買與低估值成長徽章。
+      * 每個 OB 觸及區塊內嵌 `[左側 POI | 右側突破]` 微型切換按鈕，點擊即時無縫切換進場價位與階梯風控膠囊。
+      * 底部新增「戰略分析」按鈕，點擊以 Glassmorphism 彈窗 0 延遲渲染三維指標現況、雙軌風控對照矩陣與 Mermaid 決策流程圖，並提供「複製完整文字計畫」按鈕。
+    * **Agent 技能規範升級**：將 [.agent/skills/ob-live-radar/SKILL.md](file:///c:/Intel/Shioaji_stock/.agent/skills/ob-live-radar/SKILL.md) 升級至 `v0.2.0`，正式整合 [.agent/rules/tw-stock-analysis.md](file:///c:/Intel/Shioaji_stock/.agent/rules/tw-stock-analysis.md) 台股分析標準。
 
 ---
 
@@ -365,4 +346,3 @@ c:\Intel\Shioaji_stock\
 > **本軟體僅供教育和研究用途。**
 > 
 > 期貨/股票交易具有高度風險，可能導致重大損失。歷史績效（含回測）不代表未來表現。使用風險自負，作者不承擔任何財務損失責任。
->>>>>>> 7e2fe6678e22bddb137d2bdec27d3ef9cee97f54
