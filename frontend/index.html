@@ -913,6 +913,220 @@
             font-size: 0.95rem;
         }
 
+        /* Institutional Chips & Fundamental Badges */
+        .badge-chip {
+            background: rgba(255, 170, 0, 0.15);
+            color: #ffb703;
+            border: 1px solid rgba(255, 170, 0, 0.4);
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .badge-fund {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Dual Mode Toggle */
+        .dual-mode-toggle {
+            display: inline-flex;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            padding: 2px;
+            gap: 2px;
+        }
+
+        .dual-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .dual-btn:hover {
+            color: #fff;
+        }
+
+        .dual-btn.active {
+            background: rgba(0, 242, 254, 0.25);
+            color: #fff;
+            border: 1px solid rgba(0, 242, 254, 0.45);
+            box-shadow: 0 0 8px rgba(0, 242, 254, 0.3);
+        }
+
+        .btn-radar-analysis {
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.18), rgba(79, 172, 254, 0.22));
+            color: var(--neon-blue);
+            border: 1px solid rgba(0, 242, 254, 0.4);
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.25s ease;
+        }
+
+        .btn-radar-analysis:hover {
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.35), rgba(79, 172, 254, 0.45));
+            box-shadow: 0 0 12px rgba(0, 242, 254, 0.35);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        /* Analysis Report Modal */
+        .analysis-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(6, 9, 16, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .analysis-modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .analysis-modal-content {
+            background: #0f1422;
+            border: 1px solid rgba(0, 242, 254, 0.35);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 242, 254, 0.15);
+            width: 100%;
+            max-width: 860px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .analysis-modal-overlay.active .analysis-modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 1rem;
+        }
+
+        .modal-close-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--text-secondary);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-close-btn:hover {
+            color: #fff;
+            background: rgba(239, 68, 68, 0.25);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .tri-factor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+        }
+
+        .tri-factor-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .tri-factor-title {
+            font-size: 0.82rem;
+            color: var(--neon-blue);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dual-plan-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 1rem;
+        }
+
+        .dual-plan-box {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .dual-plan-box.left {
+            border-color: rgba(0, 242, 254, 0.35);
+        }
+
+        .dual-plan-box.right {
+            border-color: rgba(0, 230, 118, 0.35);
+        }
+
+        .mermaid-diagram-box {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 1.25rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: #93c5fd;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
         /* Table micro-indicators */
         .ob-indicators {
             display: inline-flex;
@@ -1665,33 +1879,45 @@
                     const label = tfLabels[tf];
                     if (info.bullish && info.bullish.is_touching) {
                         const setup = info.bullish.trade_setup;
+                        const dual = setup ? setup.dual_setup : null;
+                        const right = dual ? dual.right : null;
+
                         let setupHTML = '';
                         if (setup) {
                             setupHTML = `
-                                <div class="trade-plan-bar">
-                                    <div class="tp-pill sl" title="保護停損點 (風險 -${setup.risk_pct}%)">
+                                <div class="trade-plan-bar" id="plan-bar-${stock.code}-${tf}">
+                                    <div class="tp-pill sl" title="保護停損點">
                                         <span class="pill-label">SL 停損</span>
-                                        <span class="pill-val">${setup.stop_loss.toFixed(1)}</span>
-                                        <span class="pill-pct">-${setup.risk_pct}%</span>
+                                        <span class="pill-val" id="val-sl-${stock.code}-${tf}">${setup.stop_loss.toFixed(1)}</span>
+                                        <span class="pill-pct" id="pct-sl-${stock.code}-${tf}">-${setup.risk_pct}%</span>
                                     </div>
-                                    <div class="tp-pill tp1" title="目標 1 (1:2 R:R, 預估 +${setup.tp1_gain_pct}%)">
+                                    <div class="tp-pill tp1" title="目標 1 (1:2 R:R)">
                                         <span class="pill-label">TP1 (1:2)</span>
-                                        <span class="pill-val">${setup.tp1.toFixed(1)}</span>
-                                        <span class="pill-pct">+${setup.tp1_gain_pct}%</span>
+                                        <span class="pill-val" id="val-tp1-${stock.code}-${tf}">${setup.tp1.toFixed(1)}</span>
+                                        <span class="pill-pct" id="pct-tp1-${stock.code}-${tf}">+${setup.tp1_gain_pct}%</span>
                                     </div>
-                                    <div class="tp-pill tp2" title="目標 2 (1:3 R:R, 預估 +${setup.tp2_gain_pct}%)">
+                                    <div class="tp-pill tp2" title="目標 2 (1:3 R:R)">
                                         <span class="pill-label">TP2 (1:3)</span>
-                                        <span class="pill-val">${setup.tp2.toFixed(1)}</span>
-                                        <span class="pill-pct">+${setup.tp2_gain_pct}%</span>
+                                        <span class="pill-val" id="val-tp2-${stock.code}-${tf}">${setup.tp2.toFixed(1)}</span>
+                                        <span class="pill-pct" id="pct-tp2-${stock.code}-${tf}">+${setup.tp2_gain_pct}%</span>
                                     </div>
                                 </div>
                             `;
                         }
+
+                        const toggleHTML = right ? `
+                            <div class="dual-mode-toggle" onclick="event.stopPropagation()">
+                                <button class="dual-btn active" id="btn-left-${stock.code}-${tf}" onclick="setDualMode('${stock.code}', '${tf}', 'left', event)">左側</button>
+                                <button class="dual-btn" id="btn-right-${stock.code}-${tf}" onclick="setDualMode('${stock.code}', '${tf}', 'right', event)">右側</button>
+                            </div>
+                        ` : '';
+
                         obBadgesHTML += `
                             <div class="ob-chip bullish">
                                 <div class="ob-chip-header">
                                     <span><i class="fa-solid fa-circle-arrow-up"></i> ${label} 多頭 OB</span>
-                                    <span class="ob-entry-range">進場: ${info.bullish.bottom.toFixed(1)} ~ ${info.bullish.top.toFixed(1)}</span>
+                                    ${toggleHTML}
+                                    <span class="ob-entry-range" id="entry-text-${stock.code}-${tf}">${info.bullish.bottom.toFixed(1)} ~ ${info.bullish.top.toFixed(1)}</span>
                                 </div>
                                 ${setupHTML}
                             </div>
@@ -1699,33 +1925,45 @@
                     }
                     if (info.bearish && info.bearish.is_touching) {
                         const setup = info.bearish.trade_setup;
+                        const dual = setup ? setup.dual_setup : null;
+                        const right = dual ? dual.right : null;
+
                         let setupHTML = '';
                         if (setup) {
                             setupHTML = `
-                                <div class="trade-plan-bar">
-                                    <div class="tp-pill sl" title="保護停損點 (風險 -${setup.risk_pct}%)">
+                                <div class="trade-plan-bar" id="plan-bar-${stock.code}-${tf}">
+                                    <div class="tp-pill sl" title="保護停損點">
                                         <span class="pill-label">SL 停損</span>
-                                        <span class="pill-val">${setup.stop_loss.toFixed(1)}</span>
-                                        <span class="pill-pct">-${setup.risk_pct}%</span>
+                                        <span class="pill-val" id="val-sl-${stock.code}-${tf}">${setup.stop_loss.toFixed(1)}</span>
+                                        <span class="pill-pct" id="pct-sl-${stock.code}-${tf}">-${setup.risk_pct}%</span>
                                     </div>
-                                    <div class="tp-pill tp1" title="目標 1 (1:2 R:R, 預估 +${setup.tp1_gain_pct}%)">
+                                    <div class="tp-pill tp1" title="目標 1 (1:2 R:R)">
                                         <span class="pill-label">TP1 (1:2)</span>
-                                        <span class="pill-val">${setup.tp1.toFixed(1)}</span>
-                                        <span class="pill-pct">+${setup.tp1_gain_pct}%</span>
+                                        <span class="pill-val" id="val-tp1-${stock.code}-${tf}">${setup.tp1.toFixed(1)}</span>
+                                        <span class="pill-pct" id="pct-tp1-${stock.code}-${tf}">+${setup.tp1_gain_pct}%</span>
                                     </div>
-                                    <div class="tp-pill tp2" title="目標 2 (1:3 R:R, 預估 +${setup.tp2_gain_pct}%)">
+                                    <div class="tp-pill tp2" title="目標 2 (1:3 R:R)">
                                         <span class="pill-label">TP2 (1:3)</span>
-                                        <span class="pill-val">${setup.tp2.toFixed(1)}</span>
-                                        <span class="pill-pct">+${setup.tp2_gain_pct}%</span>
+                                        <span class="pill-val" id="val-tp2-${stock.code}-${tf}">${setup.tp2.toFixed(1)}</span>
+                                        <span class="pill-pct" id="pct-tp2-${stock.code}-${tf}">+${setup.tp2_gain_pct}%</span>
                                     </div>
                                 </div>
                             `;
                         }
+
+                        const toggleHTML = right ? `
+                            <div class="dual-mode-toggle" onclick="event.stopPropagation()">
+                                <button class="dual-btn active" id="btn-left-${stock.code}-${tf}" onclick="setDualMode('${stock.code}', '${tf}', 'left', event)">左側</button>
+                                <button class="dual-btn" id="btn-right-${stock.code}-${tf}" onclick="setDualMode('${stock.code}', '${tf}', 'right', event)">右側</button>
+                            </div>
+                        ` : '';
+
                         obBadgesHTML += `
                             <div class="ob-chip bearish">
                                 <div class="ob-chip-header">
                                     <span><i class="fa-solid fa-circle-arrow-down"></i> ${label} 空頭 OB</span>
-                                    <span class="ob-entry-range">進場: ${info.bearish.bottom.toFixed(1)} ~ ${info.bearish.top.toFixed(1)}</span>
+                                    ${toggleHTML}
+                                    <span class="ob-entry-range" id="entry-text-${stock.code}-${tf}">${info.bearish.bottom.toFixed(1)} ~ ${info.bearish.top.toFixed(1)}</span>
                                 </div>
                                 ${setupHTML}
                             </div>
@@ -1737,6 +1975,13 @@
                     ? `<span class="badge-momentum-rec"><i class="fa-solid fa-fire"></i> 動能推薦</span>`
                     : `<span class="badge-momentum-cons">${stock.momentum_tag || '⚠️ 整理'}</span>`;
 
+                const chipBadge = stock.chip_tag 
+                    ? `<span class="badge-chip"><i class="fa-solid fa-coins"></i> ${stock.chip_tag}</span>` 
+                    : '';
+                const fundBadge = stock.fund_tag 
+                    ? `<span class="badge-fund"><i class="fa-solid fa-gem"></i> ${stock.fund_tag}</span>` 
+                    : '';
+
                 const volInfo = stock.avg_vol_20d ? `${stock.avg_vol_20d.toLocaleString()} 張` : '-';
                 const maInfo = stock.ma20 ? `20MA ${stock.ma20}` : '';
 
@@ -1746,6 +1991,8 @@
                             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 <span class="stock-code" style="font-size: 1.1rem;">${stock.code} <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-secondary);">${stock.name}</span></span>
                                 ${momentumBadge}
+                                ${chipBadge}
+                                ${fundBadge}
                             </div>
                             <div style="font-size: 0.72rem; color: var(--text-secondary);">
                                 ${maInfo} ${maInfo && volInfo ? ' • ' : ''} 均量: ${volInfo}
@@ -1759,8 +2006,11 @@
                     <div class="radar-item-badges">
                         ${obBadgesHTML}
                     </div>
-                    <div style="font-size: 0.75rem; color: var(--neon-blue); display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px;">
-                        <span>查看多週期圖表</span> <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.7rem;"></i>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.06);">
+                        <button class="btn-radar-analysis" onclick="openStockAnalysis('${stock.code}', event)"><i class="fa-solid fa-file-waveform"></i> 戰略分析</button>
+                        <div style="font-size: 0.75rem; color: var(--neon-blue); display: flex; align-items: center; gap: 4px;">
+                            <span>進入圖表</span> <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.7rem;"></i>
+                        </div>
                     </div>
                 `;
 
@@ -2300,6 +2550,233 @@
                 showToast("與伺服器通訊錯誤", 'error');
             }
         }
+
+        // Storage for cached dual setups and modal markdown
+        let currentModalMarkdown = '';
+
+        function setDualMode(code, tf, mode, event) {
+            if (event) event.stopPropagation();
+            const btnLeft = document.getElementById(`btn-left-${code}-${tf}`);
+            const btnRight = document.getElementById(`btn-right-${code}-${tf}`);
+            const entryEl = document.getElementById(`entry-text-${code}-${tf}`);
+            const valSl = document.getElementById(`val-sl-${code}-${tf}`);
+            const pctSl = document.getElementById(`pct-sl-${code}-${tf}`);
+            const valTp1 = document.getElementById(`val-tp1-${code}-${tf}`);
+            const pctTp1 = document.getElementById(`pct-tp1-${code}-${tf}`);
+            const valTp2 = document.getElementById(`val-tp2-${code}-${tf}`);
+            const pctTp2 = document.getElementById(`pct-tp2-${code}-${tf}`);
+
+            const stock = cachedStocksData.find(s => s.code === code);
+            if (!stock || !stock.ob_status || !stock.ob_status[tf]) return;
+
+            const tfInfo = stock.ob_status[tf];
+            const activeOb = (tfInfo.bullish && tfInfo.bullish.is_touching) ? tfInfo.bullish : tfInfo.bearish;
+            if (!activeOb || !activeOb.trade_setup || !activeOb.trade_setup.dual_setup) return;
+
+            const setupData = mode === 'left' ? activeOb.trade_setup.dual_setup.left : activeOb.trade_setup.dual_setup.right;
+            if (!setupData) return;
+
+            if (mode === 'left') {
+                if (btnLeft) btnLeft.classList.add('active');
+                if (btnRight) btnRight.classList.remove('active');
+            } else {
+                if (btnRight) btnRight.classList.add('active');
+                if (btnLeft) btnLeft.classList.remove('active');
+            }
+
+            if (entryEl) entryEl.textContent = setupData.entry_trigger || (setupData.entry_range ? `${setupData.entry_range[0]} ~ ${setupData.entry_range[1]}` : '');
+            if (valSl) valSl.textContent = setupData.stop_loss ? setupData.stop_loss.toFixed(1) : '-';
+            if (pctSl) pctSl.textContent = setupData.risk_pct ? `-${setupData.risk_pct}%` : '';
+            if (valTp1) valTp1.textContent = setupData.tp1 ? setupData.tp1.toFixed(1) : '-';
+            if (pctTp1) pctTp1.textContent = setupData.tp1_gain_pct ? `+${setupData.tp1_gain_pct}%` : '';
+            if (valTp2) valTp2.textContent = setupData.tp2 ? setupData.tp2.toFixed(1) : '-';
+            if (pctTp2) pctTp2.textContent = setupData.tp2_gain_pct ? `+${setupData.tp2_gain_pct}%` : '';
+        }
+
+        async function openStockAnalysis(code, event) {
+            if (event) event.stopPropagation();
+            const modal = document.getElementById('analysis-report-modal');
+            if (!modal) return;
+
+            modal.classList.add('active');
+            document.getElementById('modal-stock-title').textContent = `${code} 分析中...`;
+            document.getElementById('modal-price-badge').textContent = '載入中';
+            document.getElementById('modal-tri-factor-grid').innerHTML = '<div style="color: var(--neon-blue);"><i class="fa-solid fa-spinner fa-spin"></i> 正在聚合三維指標與雙軌計畫...</div>';
+            document.getElementById('modal-dual-plan-cards').innerHTML = '';
+            document.getElementById('modal-mermaid-box').textContent = '計算決策路徑中...';
+
+            try {
+                const res = await fetch(`/api/stock-analysis-report/${code}`);
+                if (!res.ok) {
+                    showToast("無法取得分析報告", "error");
+                    closeStockAnalysis();
+                    return;
+                }
+                const data = await res.json();
+                currentModalMarkdown = data.markdown_report || '';
+
+                document.getElementById('modal-stock-title').innerHTML = `${data.code} <span style="font-weight: normal; font-size: 1.1rem; color: var(--text-secondary);">${data.name}</span>`;
+                const priceBadge = document.getElementById('modal-price-badge');
+                priceBadge.textContent = `${parseFloat(data.live_price || 0).toFixed(2)} 元 (${data.change_rate > 0 ? '+' : ''}${parseFloat(data.change_rate || 0).toFixed(2)}%)`;
+                priceBadge.className = `price-badge ${data.change_rate > 0 ? 'up' : data.change_rate < 0 ? 'down' : 'flat'}`;
+
+                const chartBtn = document.getElementById('modal-chart-link-btn');
+                if (chartBtn) {
+                    chartBtn.onclick = () => window.open(`/chart/${data.code}`, '_blank');
+                }
+
+                const chips = data.chips || {};
+                const fund = data.fundamentals || {};
+                const triGrid = document.getElementById('modal-tri-factor-grid');
+                triGrid.innerHTML = `
+                    <div class="tri-factor-card">
+                        <div class="tri-factor-title"><i class="fa-solid fa-cubes"></i> SMC 價格結構</div>
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #fff;">${data.active_tf || '日線'} ${data.ob_direction === 'BULLISH' ? '多頭' : '空頭'} Order Block</div>
+                        <div style="font-size: 0.78rem; color: var(--text-secondary);">價格落入關鍵需求區，具備結構支撐。</div>
+                    </div>
+                    <div class="tri-factor-card">
+                        <div class="tri-factor-title"><i class="fa-solid fa-coins"></i> 法人外資籌碼</div>
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #ffb703;">${chips.chip_tag || '法人中性'}</div>
+                        <div style="font-size: 0.78rem; color: var(--text-secondary);">外資近 5 日買賣超: <b>${(chips.foreign_net_5d || 0).toLocaleString()}</b> 張</div>
+                    </div>
+                    <div class="tri-factor-card">
+                        <div class="tri-factor-title"><i class="fa-solid fa-gem"></i> 基本面與催化劑</div>
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #38bdf8;">${fund.fund_tag || '穩健'}</div>
+                        <div style="font-size: 0.78rem; color: var(--text-secondary);">營收 YoY: <b>${fund.revenue_yoy > 0 ? '+' : ''}${fund.revenue_yoy}%</b> • 本益比: <b>${fund.pe_ratio}x</b></div>
+                    </div>
+                `;
+
+                const left = (data.dual_setup && data.dual_setup.left) || {};
+                const right = (data.dual_setup && data.dual_setup.right) || {};
+                const dualCards = document.getElementById('modal-dual-plan-cards');
+                dualCards.innerHTML = `
+                    <div class="dual-plan-box left">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 700; color: var(--neon-blue); font-size: 0.92rem;"><i class="fa-solid fa-shield-halved"></i> 劇本 A：左側 POI 限價掛單</span>
+                            <span style="font-size: 0.7rem; background: rgba(0, 242, 254, 0.2); color: var(--neon-blue); padding: 2px 6px; border-radius: 4px;">最佳盈虧比</span>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                            進場條件: <span style="color: #fff; font-weight: 600;">${left.entry_trigger || '-'}</span>
+                        </div>
+                        <div class="trade-plan-bar" style="margin-top: 4px;">
+                            <div class="tp-pill sl">
+                                <span class="pill-label">SL 停損</span>
+                                <span class="pill-val">${left.stop_loss ? left.stop_loss.toFixed(1) : '-'}</span>
+                                <span class="pill-pct">-${left.risk_pct || 0}%</span>
+                            </div>
+                            <div class="tp-pill tp1">
+                                <span class="pill-label">TP1 (1:2)</span>
+                                <span class="pill-val">${left.tp1 ? left.tp1.toFixed(1) : '-'}</span>
+                                <span class="pill-pct">+${left.tp1_gain_pct || 0}%</span>
+                            </div>
+                            <div class="tp-pill tp2">
+                                <span class="pill-label">TP2 (1:3)</span>
+                                <span class="pill-val">${left.tp2 ? left.tp2.toFixed(1) : '-'}</span>
+                                <span class="pill-pct">+${left.tp2_gain_pct || 0}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dual-plan-box right">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 700; color: #00e676; font-size: 0.92rem;"><i class="fa-solid fa-bolt"></i> 劇本 B：右側結構翻多確認</span>
+                            <span style="font-size: 0.7rem; background: rgba(0, 230, 118, 0.2); color: #00e676; padding: 2px 6px; border-radius: 4px;">動能突破優先</span>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                            進場條件: <span style="color: #fff; font-weight: 600;">${right.entry_trigger || '-'}</span>
+                        </div>
+                        <div class="trade-plan-bar" style="margin-top: 4px;">
+                            <div class="tp-pill sl">
+                                <span class="pill-label">SL 停損</span>
+                                <span class="pill-val">${right.stop_loss ? right.stop_loss.toFixed(1) : '-'}</span>
+                                <span class="pill-pct">-${right.risk_pct || 0}%</span>
+                            </div>
+                            <div class="tp-pill tp1">
+                                <span class="pill-label">TP1 (1:2)</span>
+                                <span class="pill-val">${right.tp1 ? right.tp1.toFixed(1) : '-'}</span>
+                                <span class="pill-pct">+${right.tp1_gain_pct || 0}%</span>
+                            </div>
+                            <div class="tp-pill tp2">
+                                <span class="pill-label">TP2 (1:3)</span>
+                                <span class="pill-val">${right.tp2 ? right.tp2.toFixed(1) : '-'}</span>
+                                <span class="pill-pct">+${right.tp2_gain_pct || 0}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('modal-mermaid-box').textContent = data.mermaid_chart || 'flowchart TD';
+
+            } catch (err) {
+                console.error(err);
+                showToast("載入分析報告異常", "error");
+            }
+        }
+
+        function closeStockAnalysis(event) {
+            if (event && event.target && event.target.id !== 'analysis-report-modal' && !event.target.closest('.modal-close-btn')) {
+                return;
+            }
+            const modal = document.getElementById('analysis-report-modal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function copyAnalysisReport() {
+            if (!currentModalMarkdown) {
+                showToast("尚無分析內容可複製", "warning");
+                return;
+            }
+            navigator.clipboard.writeText(currentModalMarkdown).then(() => {
+                showToast("已成功複製完整戰略計畫至剪貼簿！", "success");
+            }).catch(err => {
+                console.error(err);
+                showToast("複製失敗，請手動選取", "error");
+            });
+        }
+    </script>
+
+    <!-- Analysis Report Modal -->
+    <div class="analysis-modal-overlay" id="analysis-report-modal" onclick="closeStockAnalysis(event)">
+        <div class="analysis-modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header-top">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h2 id="modal-stock-title" style="font-size: 1.4rem; color: #fff; font-weight: 700;">-</h2>
+                        <span id="modal-price-badge" class="price-badge flat">-</span>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">
+                        三維複合式分析報告 (SMC 結構 × 法人籌碼 × 基本面營收) • 依據 tw-stock-analysis 規範
+                    </div>
+                </div>
+                <button class="modal-close-btn" onclick="closeStockAnalysis()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <!-- Tri-Factor Status Cards -->
+            <div class="tri-factor-grid" id="modal-tri-factor-grid">
+                <!-- Dynamic Cards -->
+            </div>
+
+            <!-- Dual Execution Plan (Left vs Right) -->
+            <div class="dual-plan-cards" id="modal-dual-plan-cards">
+                <!-- Dynamic Plans -->
+            </div>
+
+            <!-- Mermaid Flowchart Visualizer -->
+            <div>
+                <div style="font-size: 0.88rem; font-weight: 700; color: var(--neon-blue); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-diagram-project"></i> 決策路徑流程 (Decision Flowchart)
+                </div>
+                <div class="mermaid-diagram-box" id="modal-mermaid-box">
+                    載入中...
+                </div>
+            </div>
+
+            <!-- Modal Action Bar -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 0.5rem;">
+                <button class="btn-radar-analysis" onclick="copyAnalysisReport()"><i class="fa-solid fa-copy"></i> 複製完整文字計畫</button>
+                <button class="radar-filter-btn active" id="modal-chart-link-btn"><i class="fa-solid fa-chart-candlestick"></i> 開啟多週期 K 線</button>
+            </div>
+        </div>
+    </div>
     </script>
 </body>
 </html>
