@@ -18,6 +18,7 @@ import pandas as pd
 import numpy as np
 from app import backtester
 from app import smc_detector
+from app import chip_fundamental_fetcher
 
 # Setup Logging
 logging.basicConfig(
@@ -389,6 +390,9 @@ def get_wishlist():
             except Exception as e:
                 logger.error(f"Error calculating momentum for {code}: {e}")
 
+            # Fetch Chips & Fundamental profile (Foreign/Trust chips, Revenue YoY, PE)
+            chips_fund = chip_fundamental_fetcher.get_chips_and_fundamentals(conn, code)
+
             result.append({
                 "code": code,
                 "name": s['name'],
@@ -409,7 +413,12 @@ def get_wishlist():
                 "momentum_tag": momentum_tag,
                 "avg_vol_20d": avg_vol_20d,
                 "ma20": ma20_val,
-                "ma60": ma60_val
+                "ma60": ma60_val,
+                "chips": chips_fund,
+                "chip_tag": chips_fund.get("chip_tag", ""),
+                "fund_tag": chips_fund.get("fund_tag", ""),
+                "revenue_yoy": chips_fund.get("revenue_yoy", 0.0),
+                "pe_ratio": chips_fund.get("pe_ratio", 0.0)
             })
     finally:
         conn.close()
@@ -427,6 +436,142 @@ def get_ob_radar():
         "momentum_count": len(momentum_touching),
         "stocks": touching_stocks,
         "all_monitored_count": len(all_stocks)
+    }
+
+@app.get("/api/stock-analysis-report/{code}")
+def get_stock_analysis_report(code: str):
+    """
+    Generates a structured, zero-latency composite analysis report following tw-stock-analysis.md.
+    Returns Tri-factor analysis, Dual Trade Setup (Left POI vs Right Breakout), Mermaid chart, and Risk metrics.
+    """
+    all_stocks = get_wishlist()
+    stock = next((s for s in all_stocks if s["code"] == code), None)
+    if not stock:
+        raise HTTPException(status_code=404, detail=f"Stock {code} not found in monitored list.")
+
+    # Find the most relevant active OB
+    ob_status = stock.get("ob_status", {})
+    active_ob = None
+    active_tf = None
+    ob_direction = "BULLISH"
+
+    # Priority: 1d > 60k > 15k > 5k
+    for tf in ["1d", "60k", "15k", "5k"]:
+        item = ob_status.get(tf, {})
+        if item.get("bullish") and item["bullish"].get("is_touching"):
+            active_ob = item["bullish"]
+            active_tf = tf
+            ob_direction = "BULLISH"
+            break
+        elif item.get("bearish") and item["bearish"].get("is_touching"):
+            active_ob = item["bearish"]
+            active_tf = tf
+            ob_direction = "BEARISH"
+            break
+
+    # If no active touch, fallback to any available 1d or 60k OB
+    if not active_ob:
+        for tf in ["1d", "60k", "15k", "5k"]:
+            item = ob_status.get(tf, {})
+            if item.get("bullish"):
+                active_ob = item["bullish"]
+                active_tf = tf
+                ob_direction = "BULLISH"
+                break
+            elif item.get("bearish"):
+                active_ob = item["bearish"]
+                active_tf = tf
+                ob_direction = "BEARISH"
+                break
+
+    name = stock.get("name", code)
+    live_p = stock.get("live_price", 0)
+    try:
+        live_price_val = float(live_p) if live_p != "N/A" else 0.0
+    except Exception:
+        live_price_val = 0.0
+
+    chips = stock.get("chips", {})
+    trade_setup = active_ob.get("trade_setup", {}) if active_ob else {}
+    dual_setup = trade_setup.get("dual_setup", {})
+    left_setup = dual_setup.get("left", {})
+    right_setup = dual_setup.get("right", {})
+
+    tf_labels = {"5k": "5分K", "15k": "15分K", "60k": "60分K (1小時)", "1d": "日線 (1D)"}
+    tf_str = tf_labels.get(active_tf, "日線")
+
+    # Format values
+    p_str = f"{live_price_val:.2f} 元" if live_price_val > 0 else "市價"
+    left_entry = left_setup.get("entry_trigger", f"{live_price_val:.2f} 逢低")
+    left_sl = f"{left_setup.get('stop_loss', 0):.2f} 元 (-{left_setup.get('risk_pct', 0)}%)"
+    left_tp1 = f"{left_setup.get('tp1', 0):.2f} 元 (+{left_setup.get('tp1_gain_pct', 0)}%)"
+    left_tp2 = f"{left_setup.get('tp2', 0):.2f} 元 (+{left_setup.get('tp2_gain_pct', 0)}%)"
+
+    right_trigger = right_setup.get("entry_trigger", "帶量突破")
+    right_sl = f"{right_setup.get('stop_loss', 0):.2f} 元 (-{right_setup.get('risk_pct', 0)}%)"
+    right_tp1 = f"{right_setup.get('tp1', 0):.2f} 元 (+{right_setup.get('tp1_gain_pct', 0)}%)"
+    right_tp2 = f"{right_setup.get('tp2', 0):.2f} 元 (+{right_setup.get('tp2_gain_pct', 0)}%)"
+
+    mermaid_code = f"""flowchart TD
+    P["現價: {p_str}"] --> D{{"雙軌策略抉擇"}}
+    D -->|"劇本 A: 左側 POI"| L["【左側限價掛單】<br/>買點: {left_entry}<br/>防守 SL: {left_setup.get('stop_loss', 0):.2f}"]
+    D -->|"劇本 B: 右側突破"| R["【右側翻多確認】<br/>觸發: {right_trigger}<br/>防守 SL: {right_setup.get('stop_loss', 0):.2f}"]
+    L --> TP1["第一目標 TP1: {left_setup.get('tp1', 0):.2f}<br/>(減碼 50% / 保本)"]
+    R --> TP1
+    TP1 --> TP2["波段滿足 TP2: {left_setup.get('tp2', 0):.2f}<br/>(波段獲利全出)"]"""
+
+    markdown_report = f"""# {code} {name} 複合式波段交易計畫
+
+> **分析規範依據**：遵照 `tw-stock-analysis.md` 三維複合標準（SMC 結構 ＋ 法人籌碼 ＋ 基本面營收），結合雙軌進場執行計畫。
+
+---
+
+### 一、 三維複合分析現況
+* **SMC 價格結構**：{tf_str} 關鍵 {'多頭' if ob_direction == 'BULLISH' else '空頭'} Order Block 觸及中。結構區間落於 **{active_ob.get('bottom', 0):.2f} ~ {active_ob.get('top', 0):.2f} 元**，目前價格處於關鍵折價反應區。
+* **法人籌碼動態**：{chips.get('chip_tag', '法人中性')}，外資近 5 日買賣超 **{chips.get('foreign_net_5d', 0):,} 張**，投信近 5 日買賣超 **{chips.get('trust_net_5d', 0):,} 張**。
+* **基本面與催化劑**：{chips.get('fund_tag', '穩健')}，最新營收 YoY **{chips.get('revenue_yoy', 0.0):+.1f}%**，本益比估約 **{chips.get('pe_ratio', 0.0):.1f} 倍**，下檔具備堅實基本面防守。
+
+---
+
+### 二、 雙軌進場計畫 (Dual Execution)
+* **【劇本 A：左側 POI 限價掛單】（追求極佳損益比）**
+  * **進場條件**：{left_entry}
+  * **風控停損 (SL)**：{left_sl}
+  * **目標一 (TP1)**：{left_tp1}（達標平倉 50%，停損上調至成本）
+  * **目標二 (TP2)**：{left_tp2}（波段滿足出清）
+  * **預期損益比 (R:R)**：1:2 / 1:3
+* **【劇本 B：右側結構翻多確認】（追求資金週轉效率）**
+  * **觸發進場**：{right_trigger}（需配合盤中量能放大或 15M 線實體收過）
+  * **風控停損 (SL)**：{right_sl}
+  * **目標一 (TP1)**：{right_tp1}
+  * **目標二 (TP2)**：{right_tp2}
+
+---
+
+### 三、 綜合風控評估矩陣
+| 執行劇本 | 進場條件 | 硬停損 SL | 目標 TP1 (1:2) | 目標 TP2 (1:3) | 策略特質 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **劇本 A (左側)** | {left_entry} | {left_setup.get('stop_loss', 0):.2f} | {left_setup.get('tp1', 0):.2f} | {left_setup.get('tp2', 0):.2f} | 最佳盈虧比、不追高 |
+| **劇本 B (右側)** | {right_trigger} | {right_setup.get('stop_loss', 0):.2f} | {right_setup.get('tp1', 0):.2f} | {right_setup.get('tp2', 0):.2f} | 確認動能、勝率優先 |
+"""
+
+    return {
+        "code": code,
+        "name": name,
+        "live_price": live_p,
+        "change_rate": stock.get("change_rate", 0),
+        "change_price": stock.get("change_price", 0),
+        "active_tf": active_tf,
+        "ob_direction": ob_direction,
+        "chips": chips,
+        "fundamentals": {
+            "revenue_yoy": chips.get("revenue_yoy", 0.0),
+            "pe_ratio": chips.get("pe_ratio", 0.0),
+            "fund_tag": chips.get("fund_tag", "")
+        },
+        "dual_setup": dual_setup,
+        "mermaid_chart": mermaid_code,
+        "markdown_report": markdown_report
     }
 
 @app.post("/api/wishlist")
